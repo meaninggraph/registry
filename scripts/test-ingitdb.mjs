@@ -74,6 +74,7 @@ const cases = {
   'graphs: empty maintainers (min_length)': edit('graphs', 'core', (x) => { x.maintainers = []; }),
   'graphs: maintainers missing (required)': edit('graphs', 'core', (x) => { delete x.maintainers; }),
   'graphs: homepage of 201 characters (max_length)': edit('graphs', 'chinook', (x) => { x.homepage = `https://example.com/${'a'.repeat(201 - 'https://example.com/'.length)}`; }),
+  'graphs: empty homepage (min_length)': edit('graphs', 'chinook', (x) => { x.homepage = ''; }),
   'graphs: homepage that is a number (type)': edit('graphs', 'chinook', (x) => { x.homepage = 123; }),
   'graphs: homepage that is a list (type)': edit('graphs', 'chinook', (x) => { x.homepage = ['https://example.com/']; }),
   'graphs: unknown column': edit('graphs', 'core', (x) => { x.colour = 'blue'; }),

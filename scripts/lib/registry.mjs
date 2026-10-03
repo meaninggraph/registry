@@ -59,7 +59,7 @@ export const setGitProtocols = (protocols) => { allowedProtocols = protocols; };
 // repository or hook environment cannot redirect these commands; only the TLS
 // trust settings and tracing pass through.
 const keptGitVariables = new Set(['GIT_SSL_CAINFO', 'GIT_SSL_CAPATH', 'GIT_TRACE', 'GIT_TRACE_PACKET', 'GIT_CURL_VERBOSE']);
-const gitEnv = () => ({
+export const gitEnv = () => ({
   ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_') || keptGitVariables.has(name))),
   GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1', GIT_NO_REPLACE_OBJECTS: '1',
 });
@@ -87,6 +87,30 @@ const lastLine = (error) => String(error.stderr ?? error.message).trim().split('
 
 const recordsDir = (root, collection) => join(root, collection, '$records');
 
+// Records are read with YAML merge keys switched off, so that `<<` is an
+// ordinary key (which recordProblems refuses) and not a hidden source of
+// columns that the checks never see but inGitDB merges.
+const yamlOptions = { merge: false };
+
+// The columns a collection declares in its definition, in the order of its
+// `columns_order` (which must list exactly the keys of `columns`), or a problem
+// when the definition cannot be read.
+export function readColumns(root, collection) {
+  const file = `${collection}/.collection/definition.yaml`;
+  try {
+    const definition = parseYaml(readFileSync(join(root, file), 'utf8'), yamlOptions);
+    const declared = Object.keys(definition?.columns ?? {});
+    if (declared.length === 0) return { columns: [], problems: [`${file}: declares no columns`] };
+    const order = definition.columns_order ?? declared;
+    if (!Array.isArray(order) || order.length !== declared.length || !declared.every((column) => order.includes(column))) {
+      return { columns: declared, problems: [`${file}: columns_order must list exactly the declared columns (${declared.join(', ')})`] };
+    }
+    return { columns: [...order], problems: [] };
+  } catch (error) {
+    return { columns: [], problems: [`${file}: cannot read the collection definition: ${error.message}`] };
+  }
+}
+
 // Reads one collection's records as [{ key, file, data }] sorted by key, with a
 // problem for any file in $records that is not <key>.yaml.
 export function readCollection(root, collection) {
@@ -98,7 +122,7 @@ export function readCollection(root, collection) {
     const file = `${collection}/$records/${name}`;
     if (!name.endsWith('.yaml')) { problems.push(`${file}: a record is a <key>.yaml file; remove or rename it`); continue; }
     let data;
-    try { data = parseYaml(readFileSync(join(dir, name), 'utf8')); } catch (error) { problems.push(`${file}: not YAML: ${error.message}`); continue; }
+    try { data = parseYaml(readFileSync(join(dir, name), 'utf8'), yamlOptions); } catch (error) { problems.push(`${file}: not YAML: ${error.message}`); continue; }
     records.push({ key: name.slice(0, -'.yaml'.length), file, data: data ?? {} });
   }
   return { records, problems };
@@ -108,12 +132,27 @@ export function readRegistry(root) {
   const graphs = readCollection(root, 'graphs');
   const dependencies = readCollection(root, 'dependencies');
   const maintainers = readCollection(root, 'maintainers');
+  const columns = { graphs: readColumns(root, 'graphs'), dependencies: readColumns(root, 'dependencies'), maintainers: readColumns(root, 'maintainers') };
   return {
     graphs: graphs.records,
     dependencies: dependencies.records,
     maintainers: maintainers.records,
-    problems: [...graphs.problems, ...dependencies.problems, ...maintainers.problems],
+    columns: { graphs: columns.graphs.columns, dependencies: columns.dependencies.columns, maintainers: columns.maintainers.columns },
+    problems: [...graphs.problems, ...dependencies.problems, ...maintainers.problems, ...columns.graphs.problems, ...columns.dependencies.problems, ...columns.maintainers.problems],
   };
+}
+
+// A record is a mapping of declared columns and nothing else: no key the
+// collection does not declare (which would otherwise go unchecked), and no
+// `<<` merge key.
+function keyProblems(file, data, declared) {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return [`${file}: a record is a mapping of columns`];
+  const problems = [];
+  for (const key of Object.keys(data)) {
+    if (key === '<<') problems.push(`${file}: "<<" merge keys are not allowed; write every column out, so that every value is checked`);
+    else if (!declared.includes(key)) problems.push(`${file}: ${JSON.stringify(key)} is not a column of this collection (${declared.join(', ')}); the collection definition declares every column`);
+  }
+  return problems;
 }
 
 // meaning://{host}/{path} for https://{host}/{path}, or null. One spelling per
@@ -136,12 +175,15 @@ export const wellFormed = (graph) => Boolean(graph) && addressOf(graph.data.repo
 
 // Rules on the records alone (no network): the parts of the format that the
 // inGitDB collection definitions cannot express.
-export function recordProblems({ graphs, dependencies }) {
+export function recordProblems({ graphs, dependencies, maintainers = [], columns }) {
   const problems = [];
+  for (const { file, data } of maintainers) problems.push(...keyProblems(file, data, columns.maintainers));
+  for (const { file, data } of dependencies) problems.push(...keyProblems(file, data, columns.dependencies));
   const byAddress = new Map();
   const byRepository = new Map();
   const ids = new Set(graphs.map((graph) => graph.key));
   for (const { key, file, data } of graphs) {
+    problems.push(...keyProblems(file, data, columns.graphs));
     if (!idPattern.test(key) || key.length > 80) problems.push(`${file}: id "${key}" must be lower-case letters, digits and single hyphens, at most 80 characters`);
     if (!commitPattern.test(data.commit ?? '')) problems.push(`${file}: commit must be a full 40-character lower-case commit id`);
     const address = addressOf(data.repository);
@@ -676,14 +718,16 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
 
 // index.json: every graph with its dependencies, sorted by id, and a sha256 of
 // the graphs array as written (compact JSON) so a consumer can verify one fetch.
-// An entry carries the record's columns as written, so `homepage` is on it when
-// the record has one and absent otherwise.
-// Code-unit order, the same in every locale.
+// An entry is built from the columns the graphs definition declares, in the
+// order of its `columns_order`, and never from the record as written: the same
+// keys in the same order whatever order the record file has, `id` is always the
+// file name, and a key that is not a column is never published (recordProblems
+// refuses it). Code-unit order, the same in every locale.
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 export function buildIndex(registry) {
   const graphs = registry.graphs.map(({ key, data }) => ({
     id: key,
-    ...data,
+    ...Object.fromEntries(registry.columns.graphs.filter((column) => data[column] !== undefined).map((column) => [column, data[column]])),
     depends: registry.dependencies.filter((dep) => dep.data.graph === key).map((dep) => ({ id: dep.data.depends_on, commit: dep.data.commit })).sort(byId),
   })).sort(byId);
   const checksum = `sha256:${createHash('sha256').update(JSON.stringify(graphs)).digest('hex')}`;
