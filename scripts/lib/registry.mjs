@@ -12,10 +12,10 @@
 // pull request that moves core moves the checker with it (loadChecker).
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { devNull } from 'node:os';
+import { devNull, tmpdir, userInfo } from 'node:os';
 import { parse as parseYaml } from 'yaml';
 
 export const registryFormat = 'meaning-registry/draft-1';
@@ -45,6 +45,12 @@ const pathPattern = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9_.*\/-]+$/;
 // before they reach git unless their repository is a well-formed https URL.
 // The user's and the system's git configuration are not read, so a local
 // insteadOf rewrite or hook setting cannot change what is fetched or run.
+// No hook in a hooks directory and no file-system monitor runs, whichever a
+// repository's own configuration names, and replacement refs are not
+// followed, so a repository cannot answer for a commit with other content.
+// (git also runs hooks that a repository's configuration defines,
+// hook.<name>.command, wherever core.hooksPath points; a cached repository
+// with such a key is never used, see `unsound`.)
 let allowedProtocols = 'https';
 export const setGitProtocols = (protocols) => { allowedProtocols = protocols; };
 // Every inherited GIT_* variable is dropped (GIT_DIR, GIT_WORK_TREE,
@@ -54,9 +60,22 @@ export const setGitProtocols = (protocols) => { allowedProtocols = protocols; };
 const keptGitVariables = new Set(['GIT_SSL_CAINFO', 'GIT_SSL_CAPATH', 'GIT_TRACE', 'GIT_TRACE_PACKET', 'GIT_CURL_VERBOSE']);
 const gitEnv = () => ({
   ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_') || keptGitVariables.has(name))),
-  GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1',
+  GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1', GIT_NO_REPLACE_OBJECTS: '1',
 });
-const git = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: gitEnv(), ...options }).toString();
+// core.hooksPath is an empty directory this process makes for itself (and
+// removes when it ends), so git finds no hook file whichever one it looks for.
+let noHooks;
+const hooksPath = () => {
+  if (!noHooks) {
+    noHooks = mkdtempSync(join(tmpdir(), 'meaninggraph-registry-no-hooks-'));
+    process.once('exit', () => rmSync(noHooks, { recursive: true, force: true }));
+  }
+  if (readdirSync(noHooks).length > 0) throw new Error(`${noHooks} must stay empty: it is where git is told to look for hooks`);
+  return noHooks;
+};
+const hardening = () => ['-c', `core.hooksPath=${hooksPath()}`, '-c', 'core.fsmonitor=false'];
+// Every git command this module runs, on a cached repository or not.
+export const git = (args, options = {}) => execFileSync('git', [...hardening(), ...args], { stdio: 'pipe', env: gitEnv(), ...options }).toString();
 // A `run` for core's checkoutGit: the same environment, and --end-of-options
 // before `url` in its fetch.
 const runFor = (url) => (command, args) => {
@@ -161,24 +180,154 @@ export function recordProblems({ graphs, dependencies }) {
   return problems;
 }
 
+// The git cache (the checkouts of the graphs and of the checker, and the
+// branch histories) is never inside the registry. A pull request can commit a
+// `.cache` directory there, and git would run the hooks and obey the
+// configuration of a repository it finds in it. The cache is a directory of
+// the user's own: $XDG_CACHE_HOME/meaninggraph-registry, or, when
+// XDG_CACHE_HOME is not an absolute path, meaninggraph-registry-<user> in the
+// system's temporary directory.
+export function defaultCacheDir() {
+  const xdg = process.env.XDG_CACHE_HOME;
+  if (xdg && isAbsolute(xdg)) return join(xdg, 'meaninggraph-registry');
+  return join(tmpdir(), `meaninggraph-registry-${process.getuid?.() ?? userInfo().username}`);
+}
+// Each registry directory has its own part of that cache, as it had its own
+// `.cache` before, so two checkouts checked at the same time never rewrite
+// each other's checkouts. It is not removed with the registry directory.
+export const cacheDirFor = (root, base = defaultCacheDir()) => join(base, createHash('sha256').update(realpathSync.native(root)).digest('hex').slice(0, 16));
+
+// Makes a cache directory (mode 0700) and returns it. Refused, because someone
+// else could have put repositories in it: a path that is not a real directory
+// (a symbolic link is not followed), one another user owns, one that group or
+// others can write to, and one inside the registry `root`.
+export function prepareCacheDir(dir, root) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const stat = lstatSync(dir);
+  if (!stat.isDirectory()) throw new Error(`${dir} is not a directory of its own (a symbolic link is not followed); the git cache is not kept there`);
+  if (process.getuid && stat.uid !== process.getuid()) throw new Error(`${dir} belongs to another user; the git cache is not kept there (set XDG_CACHE_HOME to a directory of your own)`);
+  if (process.platform !== 'win32' && (stat.mode & 0o022) !== 0) throw new Error(`${dir} can be written by other users; the git cache is not kept there (chmod 700 it, or set XDG_CACHE_HOME)`);
+  if (root !== undefined) {
+    // The native realpath also gives a file system's own spelling of a path that ignores case.
+    const within = relative(realpathSync.native(root), realpathSync.native(dir));
+    if (within === '' || !(within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within))) throw new Error(`${dir} is inside the registry ${root}; the git cache is kept outside it, where a pull request cannot commit files`);
+  }
+  return dir;
+}
+// What a cache directory holds: checkouts of the checker and of the graphs, and branch histories.
+const cacheParts = ['checker', 'graphs', 'history'];
+// The prepared cache directory of the registry `root`, inside the prepared per-user one.
+const ownCacheDir = (root) => { prepareCacheDir(defaultCacheDir(), root); return prepareCacheDir(cacheDirFor(root), root); };
+
+// The paths under `.cache` that the repository holding `root` tracks. The
+// checker does not run on such a registry: nothing reads `.cache` any more, so
+// a tracked one is either left over or an attempt to plant repositories.
+export function trackedCache(root) {
+  try {
+    return git(['-C', root, 'ls-files', '-z', '--', ':(icase).cache']).split('\0').filter(Boolean);
+  } catch (error) {
+    if (/not a git repository/i.test(String(error.stderr))) return [];
+    // git's own advice (safe.directory in the user's configuration) cannot help: that configuration is not read.
+    if (/dubious ownership/i.test(String(error.stderr))) throw new Error(`cannot tell whether ${root} tracks a .cache directory: its repository belongs to another user, and the check reads no user git configuration that could allow it; run the check as the owner of the checkout`);
+    throw new Error(`cannot tell whether ${root} tracks a .cache directory: ${lastLine(error)}`);
+  }
+}
+
+// What git itself writes into the configuration of the two kinds of repository
+// kept in the cache. `required` keys must be there; the `optional` ones depend
+// on the platform and the git version. Each has the values it may take. Any
+// other key (hooksPath, fsmonitor, a hook.<name>.command, an insteadOf
+// rewrite, a filter, an include, a credential helper, a second remote) means
+// the repository is not one this module made, or was changed since.
+const oneOf = (...values) => (value) => values.includes(value);
+const flag = oneOf('true', 'false');
+const platformConfig = {
+  'core.filemode': flag, 'core.ignorecase': flag, 'core.precomposeunicode': flag, 'core.symlinks': flag, 'core.logallrefupdates': flag,
+  'extensions.refstorage': oneOf('files', 'reftable'), 'extensions.objectformat': oneOf('sha1'),
+};
+// Files in a git directory that make git read objects or history from
+// somewhere else, or change the files it writes. A checkout holds one commit
+// (a shallow fetch), so it has a `shallow` file; a branch history never does.
+const foreignFiles = ['commondir', 'info/grafts', 'info/attributes', 'objects/info/alternates', 'objects/info/http-alternates'];
+const checkoutRules = { required: { 'core.repositoryformatversion': oneOf('0', '1'), 'core.bare': oneOf('false') }, optional: platformConfig, foreign: foreignFiles };
+const historyRules = (url) => ({
+  required: { 'core.repositoryformatversion': oneOf('1'), 'core.bare': oneOf('true'), 'remote.origin.url': oneOf(url), 'remote.origin.promisor': oneOf('true'), 'remote.origin.partialclonefilter': oneOf('tree:0') },
+  optional: { ...platformConfig, 'extensions.partialclone': oneOf('origin') },
+  foreign: [...foreignFiles, 'shallow'],
+});
+
+// Why the git directory `gitDir` of a cached repository cannot be trusted to
+// be what this module left there, or null when it can: it is a real
+// directory, with the configuration git wrote for it and nothing more (read
+// as a file, before any git command runs in the repository), with no file
+// that redirects it, and with every object hashing to its name (git fsck), so
+// that a commit id names the content it always named.
+export function unsound(gitDir, { required, optional, foreign }) {
+  try {
+    if (!lstatSync(gitDir).isDirectory()) return 'its git directory is not a directory';
+    const file = foreign.find((name) => lstatSync(join(gitDir, name), { throwIfNoEntry: false }));
+    if (file) return `it has a ${file} file`;
+    const entries = git(['config', '--file', join(gitDir, 'config'), '--no-includes', '--list', '-z']).split('\0').filter(Boolean).map((entry) => {
+      const at = entry.indexOf('\n');
+      return at < 0 ? [entry, null] : [entry.slice(0, at), entry.slice(at + 1)];
+    });
+    const allowed = (key) => (Object.hasOwn(required, key) ? required[key] : Object.hasOwn(optional, key) ? optional[key] : () => false);
+    const set = entries.find(([key, value]) => !allowed(key)(value));
+    if (set) return `its configuration sets ${set[0]}${Object.hasOwn(required, set[0]) || Object.hasOwn(optional, set[0]) ? ' to a value git did not write there' : ''}`;
+    const unset = Object.keys(required).find((key) => !entries.some(([name]) => name === key));
+    if (unset) return `its configuration has no ${unset}`;
+  } catch (error) {
+    return `it cannot be read: ${lastLine(error)}`;
+  }
+  try { git(['--git-dir', gitDir, 'fsck', '--no-dangling', '--no-progress']); } catch (error) { return `git fsck: ${lastLine(error)}`; }
+  return null;
+}
+// The same for a checkout of one commit, as fetchCommit and the checker's checkoutGit keep them.
+const checkoutUnsound = (dir) => (lstatSync(dir, { throwIfNoEntry: false })?.isDirectory() ? unsound(join(dir, '.git'), checkoutRules) : 'it is not a directory');
+export const intactCheckout = (dir) => checkoutUnsound(dir) === null;
+// git trusts a checkout's index when it decides which files to rewrite: an
+// entry marked skip-worktree or assume-unchanged, or one whose recorded size
+// and times match an altered file, leaves that file as it is and reports no
+// difference. A kept checkout therefore loses its index before it is made its
+// commit again, so every file is written from the commit; and it loses its
+// files, because git reads attributes (line endings, encodings) from a
+// .gitattributes it finds in the work tree while it writes them.
+const forgetIndex = (dir) => {
+  rmSync(join(dir, '.git', 'index'), { force: true });
+  for (const name of readdirSync(dir)) if (name !== '.git') rmSync(join(dir, name), { recursive: true, force: true });
+};
+// Deletes a cached repository that is not used again, and says why (a cache
+// that never hits would otherwise go unnoticed).
+const discard = (dir, why) => {
+  if (lstatSync(dir, { throwIfNoEntry: false })) console.error(`note: the cached ${dir} is not used again (${why}); it is fetched anew`);
+  rmSync(dir, { recursive: true, force: true });
+};
+
 // Fetches one commit of a repository into cacheDir/<commit>. A cached
-// checkout is reused only after it has been made exactly that commit again:
-// tracked files rewritten, every untracked and ignored file (node_modules
-// included) removed, and nothing left that differs. Used only to bootstrap the
-// checker; graphs are fetched with the checker's own checkoutGit.
+// checkout is reused only when it can be trusted (see `unsound`) and after it
+// has been made exactly that commit again, from nothing but its git directory
+// (see forgetIndex): every file written from the commit with a new index, and
+// nothing left that differs. Used only to bootstrap the checker; graphs
+// are fetched with the checker's own checkoutGit.
 export function fetchCommit(url, commit, cacheDir) {
   if (!commitPattern.test(commit)) throw new Error(`${commit} is not a full commit id`);
   const dir = join(cacheDir, commit);
   const at = (...args) => git(['--git-dir', join(dir, '.git'), '--work-tree', dir, ...args]).trim();
-  try {
-    if (existsSync(dir) && at('rev-parse', 'HEAD') === commit) {
-      at('read-tree', '--reset', '-u', 'HEAD');
-      at('checkout-index', '--all', '--force');
-      at('clean', '-ffdxq');
-      if (at('status', '--porcelain', '--ignored', '--untracked-files=all') === '') return dir;
-    }
-  } catch { /* not a usable checkout: fetch it again */ }
-  rmSync(dir, { recursive: true, force: true });
+  if (lstatSync(dir, { throwIfNoEntry: false })) {
+    let why = checkoutUnsound(dir);
+    try {
+      if (why === null && at('rev-parse', 'HEAD') !== commit) why = 'it is at another commit';
+      if (why === null) {
+        forgetIndex(dir);
+        at('read-tree', '--reset', '-u', 'HEAD');
+        at('checkout-index', '--all', '--force');
+        at('clean', '-ffdxq');
+        if (at('status', '--porcelain', '--ignored', '--untracked-files=all') === '') return dir;
+        why = 'its files differ from the commit';
+      }
+    } catch (error) { why = lastLine(error); }
+    discard(dir, why);
+  }
   mkdirSync(cacheDir, { recursive: true });
   const work = mkdtempSync(join(cacheDir, '.fetch-'));
   try {
@@ -208,16 +357,27 @@ export function defaultBranch(url) {
 // a bare, commits-only (tree:0) clone of the branch per URL in cacheDir,
 // fetches it again once per run (`fetched` remembers), and asks git whether
 // the commit is an ancestor of the branch (or the branch itself). A commit the
-// clone does not have is not in that history either.
+// clone does not have is not in that history either. A kept clone is fetched
+// into only when it can be trusted (see `unsound`) and its remote is `url`, and
+// then through that remote: a fetch by URL is not a fetch from the clone's
+// promisor, so git would look for the trees the clone never had and fail once
+// the branch has moved. A clone that cannot be trusted, or that cannot be
+// brought up to date, is deleted and cloned again.
 export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
   if (!commitPattern.test(commit) || !tagPattern.test(branch)) return false;
   const dir = join(cacheDir, createHash('sha256').update(`${url}#${branch}`).digest('hex').slice(0, 32));
   const ref = `refs/heads/${branch}`;
   if (!fetched.has(dir)) {
     try {
-      if (existsSync(join(dir, 'HEAD'))) git(['-C', dir, 'fetch', '-q', '--force', '--end-of-options', url, `+${ref}:${ref}`]);
-      else {
-        rmSync(dir, { recursive: true, force: true });
+      let current = false;
+      if (lstatSync(dir, { throwIfNoEntry: false })) {
+        let why = unsound(dir, historyRules(url));
+        if (why === null) {
+          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ended with status ${error.status}`}`; }
+        }
+        if (!current) discard(dir, why);
+      }
+      if (!current) {
         mkdirSync(cacheDir, { recursive: true });
         git(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, '--end-of-options', url, dir]);
       }
@@ -240,7 +400,7 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
 // be in the history of meaninggraph/core's main branch: a commit that only a
 // fork has would otherwise run its own checker code in CI. Returns
 // { meaning, dir, commit }.
-export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDir = join(root, '.cache', 'checker'), historyDir = join(root, '.cache', 'history'), fetched = new Set() }) {
+export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'checker'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set() }) {
   const core = graphs.find((graph) => graph.key === checkerGraph);
   if (!core) throw new Error(`graphs/$records/${checkerGraph}.yaml is missing; the checker is read from that graph's commit`);
   const { repository, commit } = core.data;
@@ -359,19 +519,27 @@ function licenceProblems(file, dir, paths, expected, column) {
 // Fetches every graph at its commit and checks it. `urlFor` maps a repository
 // URL to the URL git fetches (tests point it at local repositories);
 // `checker` is the result of loadChecker.
-export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(root, '.cache', 'graphs'), historyDir = join(root, '.cache', 'history'), fetched = new Set(), branches = new Map() }) {
+export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'graphs'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set(), branches = new Map() }) {
   const { meaning } = checker;
   const schemaPath = join(checker.dir, 'meaning.schema.json');
   const problems = [];
   const byAddress = new Map(registry.graphs.map((graph) => [graph.data.address, graph]));
   const byKey = new Map(registry.graphs.map((graph) => [graph.key, graph]));
   const checkouts = new Map();
-  // Only well-formed graphs and full commit ids ever reach git.
+  // Only well-formed graphs and full commit ids ever reach git. The checker's
+  // checkoutGit reuses cacheDir/<commit> when it is that commit. Before it
+  // sees a kept checkout, one that cannot be trusted is deleted, so that it is
+  // fetched again, and one that can loses its index and files (see forgetIndex).
   const checkout = (graph, commit) => {
     if (!wellFormed(graph) || !commitPattern.test(commit)) return { error: `${graph.file} is not well formed, so it is not fetched` };
     const key = `${graph.data.repository}@${commit}`;
     if (!checkouts.has(key)) {
       const url = urlFor(graph.data.repository);
+      const kept = join(cacheDir, commit);
+      if (lstatSync(kept, { throwIfNoEntry: false })) {
+        const why = checkoutUnsound(kept);
+        if (why === null) forgetIndex(kept); else discard(kept, why);
+      }
       try { checkouts.set(key, meaning.checkoutGit(url, commit, { cacheDir, retries: 2, run: runFor(url) })); } catch (error) { checkouts.set(key, { error: error.message }); }
     }
     return checkouts.get(key);
@@ -525,8 +693,19 @@ export function indexProblems(root, registry) {
 // Every check: records, index.json, then each graph at its commit.
 // `fetched` and `branches` remember, across calls, which branch histories were
 // fetched and which default branches were read; by default each call starts afresh.
-export async function checkRegistry({ root, urlFor, cacheDir = join(root, '.cache'), fetched = new Set(), branches = new Map() } = {}) {
+// Nothing is checked, fetched or read from a cache when the registry tracks a
+// `.cache` directory, or when the cache directory cannot be trusted
+// (prepareCacheDir): the one problem returned says which.
+export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(), branches = new Map() } = {}) {
   const registry = readRegistry(root);
+  try {
+    const tracked = trackedCache(root);
+    if (tracked.length > 0) throw new Error(`.cache is tracked (${tracked[0]}${tracked.length > 1 ? ` and ${tracked.length - 1} more` : ''}); the checker keeps its git cache outside the registry and does not run on one that commits a cache: git rm -r --cached .cache`);
+    cacheDir = cacheDir === undefined ? ownCacheDir(root) : prepareCacheDir(cacheDir, root);
+    for (const part of cacheParts) prepareCacheDir(join(cacheDir, part), root);
+  } catch (error) {
+    return { problems: [`cache: ${error.message}`], graphs: registry.graphs.length };
+  }
   const problems = [...registry.problems, ...recordProblems(registry), ...indexProblems(root, registry)];
   let checker;
   const historyDir = join(cacheDir, 'history');

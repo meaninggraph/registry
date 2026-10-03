@@ -39,15 +39,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The checks keep their git cache under XDG_CACHE_HOME, never in the
+      # checkout: a pull request could commit repositories (with hooks) into a
+      # directory there.
+      - name: Keep the git cache outside the checkout
+        run: echo "XDG_CACHE_HOME=${RUNNER_TEMP}/xdg-cache" >> "${GITHUB_ENV}"
       # Commits are immutable, so checkouts of the graphs (and of the checker)
-      # are cached under their commit ids. Before reuse each is made exactly
-      # its commit again (tracked files rewritten, untracked and ignored files
-      # removed, then verified); the checker's dependencies are reinstalled
-      # with npm ci every run.
+      # are cached under their commit ids. Before reuse each is verified (its
+      # git configuration and every object) and made exactly its commit again
+      # (its files deleted and written from the commit with a new index); the
+      # checker's dependencies are reinstalled with npm ci every run.
       - name: Cache the graph checkouts
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .cache
+          path: ${{ runner.temp }}/xdg-cache/meaninggraph-registry
           key: graphs-${{ hashFiles('graphs/$records/*.yaml', 'dependencies/$records/*.yaml') }}
           restore-keys: graphs-
       - name: Meaning checks

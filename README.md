@@ -217,6 +217,38 @@ checker code that only a fork has. A pull request that moves
 `core` to a new commit therefore moves the checker with it, and is checked by
 it.
 
+The repositories the check fetches (a checkout of each graph and of the
+checker at its commit, and the history of each default branch) are kept in a
+git cache, so that a later run fetches only what is new. The cache is never
+inside this repository, where a pull request could commit a `.cache`
+directory holding a repository with hooks of its own:
+
+- it is a directory of the user's own, `$XDG_CACHE_HOME/meaninggraph-registry`
+  or, when `XDG_CACHE_HOME` is not set, `meaninggraph-registry-<user>` in the
+  system's temporary directory, with one subdirectory per registry checkout.
+  The check creates it with mode 0700 and refuses a cache directory that is a
+  symbolic link, belongs to another user, can be written by others, or is
+  inside the registry;
+- the check refuses to run on a registry that tracks a `.cache` directory
+  (`.cache/` is git-ignored, and nothing reads it any more);
+- git never runs a hook from a hooks directory or a file-system monitor
+  (`core.hooksPath` is an empty directory and `core.fsmonitor` is off on
+  every command), reads no system or user configuration, talks only https,
+  and does not follow replacement refs;
+- a cached repository is used again only after it is verified: its
+  configuration holds what git itself writes for such a repository and
+  nothing else (no hook path, hook command, URL rewrite, filter, include or
+  other remote), no file redirects it to other objects or history, and every
+  object hashes to its name (`git fsck`). A checkout must also be at its
+  commit, and its files are deleted and written from the commit again with
+  a new index, so neither an index that hides an altered file nor a file
+  left in the checkout has any effect. A repository that
+  fails, or a branch history that cannot be brought up to date, is deleted
+  and fetched again, and the check prints a `note:` line saying why;
+- the cache is not removed with the checkout it belongs to: delete the
+  directory to get the space back. A `.cache` directory that an earlier
+  version left in a checkout is no longer used and can be deleted.
+
 `npm test` proves each check fails on a broken entry: an unknown commit, a
 missing path, a meaning file that does not fit the schema, a licence that
 differs from the files, the same graph under a second id, a wrong address, a
@@ -226,7 +258,15 @@ commit, a pin or a checker commit that is not on the default branch, a
 checker taken from another repository, the same repository spelled with
 `.git` or in another case, a repository value shaped like a git option, a
 model path that leaves the repository, a symbolic link, an undeclared licence
-where the repository's default is ambiguous, and a tag lookalike.
+where the repository's default is ambiguous, and a tag lookalike. It also
+proves the cache rules: a repository planted in a `.cache` directory of the
+registry is not read when it is untracked and stops the check when it is
+tracked, and its hooks do not run either way; no hook in a hooks directory
+and no file-system monitor of a repository runs; a cached repository with a
+forged object, or with configuration or files that git did not write, is
+fetched again; a replacement ref is not followed; a file altered behind a
+forged index is written from the commit again; and a cache directory inside
+the registry, writable by others, or behind a symbolic link is refused.
 `npm run test:ingitdb` (with `INGITDB_CLI` set to the CLI) proves inGitDB
 rejects each broken constraint of the collection definitions.
 
