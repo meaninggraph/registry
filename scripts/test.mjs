@@ -130,7 +130,7 @@ test('a path that does not exist at the commit fails', async () => {
     const chinook = readRecord(d, 'graphs', 'chinook');
     writeRecord(d, 'graphs', 'chinook', { ...chinook, model_files: [...chinook.model_files, 'model/missing.modelspec.hcl'] });
   });
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit 8c9e62e/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit f0c71b9/);
 });
 
 test('a meaning file that does not fit the meaning/draft-1 schema fails', async () => {
@@ -339,7 +339,7 @@ test('a tag must be that exact tag, not a branch whose name ends like it', async
 
 test('a missing meaning file, a stray record file and bad paths fail', async () => {
   const missing = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), meaning_files: ['model/missing.meaning.yaml'] }));
-  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit 8c9e62e/);
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit f0c71b9/);
   const stray = registry((d) => writeFileSync(join(d, 'graphs', '$records', 'stray.yml'), 'x: 1\n'));
   expectProblem((await check(stray)).problems, /^graphs\/\$records\/stray\.yml: a record is a <key>\.yaml file/);
   const paths = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), meaning_files: ['../x.meaning.yaml', 'README.md'], model_files: ['a.hcl'], model_licence: 'MIT' }));
