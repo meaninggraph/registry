@@ -34,14 +34,16 @@ columns:
     type: string
     required: true
     enum: [draft, published, deprecated]
+  # address and repository carry no `format:` hint: inGitDB treats `format`
+  # as a rendering hint and does not validate it (checked with v0.68.2).
+  # scripts/check.mjs checks both: repository is an https URL without .git,
+  # address is its meaning:// form, and neither is registered twice.
   address:
     type: string
     required: true
-    format: uri
   repository:
     type: string
     required: true
-    format: uri
   commit:
     type: string
     required: true

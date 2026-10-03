@@ -5,13 +5,16 @@
 // repository that stands in for an https URL.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, checkRegistry, checkerRepository, declaredLicence, fetchCommit, loadChecker, readRegistry } from './lib/registry.mjs';
+import { buildIndex, checkRegistry, checkerRepository, declaredLicence, defaultBranch, fetchCommit, loadChecker, readRegistry, setGitProtocols } from './lib/registry.mjs';
+
+// The local repositories that stand in for https URLs are file:// URLs.
+setGitProtocols('https:file');
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const cacheDir = join(root, '.cache');
@@ -42,22 +45,25 @@ function registry(change, { rebuildIndex = true } = {}) {
 // stand-in for a commit that only a fork has, which GitHub still serves
 // through the parent's URL.
 const origins = new Map();
-function origin(name, files, { from, side, repository = `https://example.test/fixtures/${name}` } = {}) {
+function origin(name, files, { from, side, symlinks = {}, branches = [], tags = [], repository = `https://example.test/fixtures/${name}` } = {}) {
   const dir = join(scratch, `origin-${count++}`);
   mkdirSync(dir);
   const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe' }).toString().trim();
-  const commitFiles = (entries) => {
+  const commitFiles = (entries, links = {}) => {
     for (const [path, text] of Object.entries(entries)) {
       mkdirSync(dirname(join(dir, path)), { recursive: true });
       writeFileSync(join(dir, path), text);
     }
+    for (const [path, target] of Object.entries(links)) symlinkSync(target, join(dir, path));
     git('add', '.');
     git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'files');
     return git('rev-parse', 'HEAD');
   };
   git('init', '-q', '-b', 'main');
   if (from) cpSync(from, dir, { recursive: true, filter: (path) => !/\/(\.git|node_modules)(\/|$)/.test(path.slice(from.length)) });
-  const commit = commitFiles(files);
+  const commit = commitFiles(files, symlinks);
+  for (const branch of branches) git('branch', branch);
+  for (const tag of tags) git('tag', tag);
   let sideCommit;
   if (side) {
     git('checkout', '-q', '-b', 'side');
@@ -135,13 +141,13 @@ test('a licence that differs from the one the files declare fails', async () => 
   const { problems } = await check(dir);
   expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: meaning_licence is MIT, but model\/chinook\.meaning\.yaml declares CC0-1.0/);
   expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.hcl declares MIT/);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.json declares no licence and the repository's LICENSE files name (MIT, CC0-1\.0|CC0-1\.0, MIT)/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.json declares no licence and the repository's default licence \(its LICENSE file\) is MIT/);
 });
 
 test('the same graph registered under a second id fails', async () => {
   const dir = registry((d) => writeRecord(d, 'graphs', 'chinook-again', readRecord(d, 'graphs', 'chinook')));
   const { problems } = await check(dir);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids \(chinook-again, chinook\); a graph is registered once$/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids \(chinook-again: meaning:\/\/github\.com\/datatug\/chinookdb, chinook: meaning:\/\/github\.com\/datatug\/chinookdb, compared ignoring case\); a graph is registered once$/);
   expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids/);
 });
 
@@ -210,6 +216,146 @@ test('the checker runs only from a commit in the history of meaninggraph/core ma
   assert.equal(typeof checker.meaning.checkMeaning, 'function', 'the commit on main loads');
   await assert.rejects(loadChecker({ ...options, graphs: graphs(local.sideCommit) }), new RegExp(`commit ${local.sideCommit} of the core record is not in the history of main of https://github\\.com/meaninggraph/core`));
   origins.delete(checkerRepository);
+});
+
+const CC0 = 'CC0 1.0 Universal\n';
+
+// B1: a record value must never reach git as an option. The payload only
+// creates a marker file; the test fails if it ever appears.
+test('a repository value written as a git option is refused and never runs', async () => {
+  const marker = join(scratch, `MARKER-${count++}`);
+  const ref = 'a'.repeat(40);
+  const evilAddress = 'meaning://example.test/fixtures/evil';
+  const a = origin('argv', { 'fixture.meaning.yaml': meaningFile({ concepts: [{ id: 'thing', kind: 'entity', labels: { en: 'Thing' }, description: 'x', extends: `${evilAddress}/thing?ref=${ref}` }] }), LICENSE: CC0 });
+  const dir = registry((d) => {
+    writeRecord(d, 'graphs', 'argv', fixtureRecord(a));
+    writeRecord(d, 'graphs', 'evil', fixtureRecord({ address: evilAddress, repository: `--upload-pack=touch ${marker};false`, commit: ref }));
+  });
+  const { problems } = await check(dir);
+  assert.equal(existsSync(marker), false, 'a record value ran a command');
+  expectProblem(problems, /^graphs\/\$records\/evil\.yaml: repository must be an https URL of a repository/);
+  expectProblem(problems, /^graphs\/\$records\/argv\.yaml: fixture\.meaning\.yaml: concept thing extends: meaning:\/\/example\.test\/fixtures\/evil is registered by graphs\/\$records\/evil\.yaml, which is not well formed/);
+});
+
+test('git reads a URL after --end-of-options and talks only the allowed protocols', () => {
+  const marker = join(scratch, `MARKER-${count++}`);
+  assert.throws(() => defaultBranch(`--upload-pack=touch ${marker};false`));
+  assert.equal(existsSync(marker), false, 'an option-shaped URL ran a command');
+  const local = origin('protocols', { README: 'x\n' });
+  assert.equal(defaultBranch(origins.get(local.repository)), 'main');
+  setGitProtocols('https');
+  try {
+    assert.throws(() => defaultBranch(origins.get(local.repository)), /transport 'file' not allowed/);
+  } finally { setGitProtocols('https:file'); }
+});
+
+// S1: every pin, in any field, and every dependency record's commit must be on the default branch.
+test('a dependency pinned at a commit off its default branch fails, in any field and in the dependency record', async () => {
+  const b = origin('pinned', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 }, { side: { 'fixture.meaning.yaml': meaningFile({ description: 'side' }) } });
+  const inDescription = `meaning://example.test/fixtures/pinned/thing?ref=${b.sideCommit}`;
+  const a = origin('pinning', { 'fixture.meaning.yaml': meaningFile({ concepts: [{ id: 'thing', kind: 'entity', labels: { en: 'Thing' }, description: inDescription }] }), LICENSE: CC0 });
+  const dir = registry((d) => {
+    writeRecord(d, 'graphs', 'pinned', fixtureRecord(b));
+    writeRecord(d, 'graphs', 'pinning', fixtureRecord(a));
+    writeRecord(d, 'dependencies', 'pinning--pinned', { graph: 'pinning', depends_on: 'pinned', commit: b.sideCommit });
+  });
+  expectProblem((await check(dir)).problems, new RegExp(`^graphs/\\$records/pinning\\.yaml: the meaning files pin meaning://example\\.test/fixtures/pinned at ${b.sideCommit}: commit ${b.sideCommit} is not in the history of main`));
+  const record = registry((d) => {
+    writeRecord(d, 'graphs', 'pinned', fixtureRecord(b));
+    writeRecord(d, 'graphs', 'pinning-main', fixtureRecord(origin('pinning-main', { 'fixture.meaning.yaml': meaningFile({ concepts: [{ id: 'thing', kind: 'entity', labels: { en: 'Thing' }, description: 'x', extends: `meaning://example.test/fixtures/pinned/thing?ref=${b.commit}` }] }), LICENSE: CC0 })));
+    writeRecord(d, 'dependencies', 'pinning-main--pinned', { graph: 'pinning-main', depends_on: 'pinned', commit: b.sideCommit });
+  });
+  expectProblem((await check(record)).problems, new RegExp(`^dependencies/\\$records/pinning-main--pinned\\.yaml: commit ${b.sideCommit} is not in the history of main`));
+});
+
+// S2: one repository, two spellings.
+test('the same repository spelled with .git or in another case is refused', async () => {
+  const dotGit = registry((d) => {
+    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/datatug/chinookdb.git', address: 'meaning://github.com/datatug/chinookdb.git' });
+    writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
+  });
+  expectProblem((await check(dotGit)).problems, /^graphs\/\$records\/chinook-dup\.yaml: repository must be an https URL of a repository, such as https:\/\/github\.com\/\{org\}\/\{repo\} \(no trailing slash or \.git\)/);
+  const cased = registry((d) => {
+    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/Datatug/ChinookDB', address: 'meaning://github.com/Datatug/ChinookDB' });
+    writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
+  });
+  const { problems } = await check(cased);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids \(chinook-dup: https:\/\/github\.com\/Datatug\/ChinookDB, chinook: https:\/\/github\.com\/datatug\/chinookdb, compared ignoring case\)/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids/);
+});
+
+test('a model path that leaves the repository is refused before the checker reads it', async () => {
+  const outside = join(scratch, `outside-${count++}.hcl`);
+  writeFileSync(outside, 'SECRET = "do-not-read"\n');
+  const source = origin('traversal', { 'fixture.meaning.yaml': meaningFile({ models: { m: `${'../'.repeat(30)}${outside.slice(1)}` } }), LICENSE: CC0 });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'traversal', fixtureRecord(source)));
+  const { problems } = await check(dir);
+  expectProblem(problems, /^graphs\/\$records\/traversal\.yaml: fixture\.meaning\.yaml: models: ".*" must be a relative path that stays inside the repository/);
+  assert.ok(!problems.some((problem) => problem.includes('do-not-read')));
+});
+
+test('a listed file that is a symbolic link is refused', async () => {
+  const outside = join(scratch, `outside-${count++}.meaning.yaml`);
+  writeFileSync(outside, 'format: meaning/draft-1\nid: x\nname: LEAKED\n');
+  const source = origin('symlink', { LICENSE: CC0 }, { symlinks: { 'fixture.meaning.yaml': outside } });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'symlink', fixtureRecord(source)));
+  const { problems } = await check(dir);
+  expectProblem(problems, /^graphs\/\$records\/symlink\.yaml: meaning_files: fixture\.meaning\.yaml is not a regular file at commit [0-9a-f]{40} \(a symbolic link or submodule\)/);
+  assert.ok(!problems.some((problem) => problem.includes('LEAKED')));
+});
+
+test('a file without a licence takes the repository default, and must declare one when there is none', async () => {
+  const withDefault = origin('licence-default', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', LICENSE: 'MIT License\n', 'LICENSE-CC0': CC0 });
+  const wrong = registry((d) => writeRecord(d, 'graphs', 'licence-default', fixtureRecord(withDefault, { model_files: ['m.modelspec.json'], model_licence: 'CC0-1.0' })));
+  expectProblem((await check(wrong)).problems, /^graphs\/\$records\/licence-default\.yaml: model_licence is CC0-1\.0, but m\.modelspec\.json declares no licence and the repository's default licence \(its LICENSE file\) is MIT/);
+  const right = registry((d) => writeRecord(d, 'graphs', 'licence-default', fixtureRecord(withDefault, { model_files: ['m.modelspec.json'], model_licence: 'MIT' })));
+  assert.deepEqual((await check(right)).problems, []);
+  const noDefault = origin('licence-several', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', 'LICENSE-MIT': 'MIT License\n', 'LICENSE-CC0': CC0 });
+  const ambiguous = registry((d) => writeRecord(d, 'graphs', 'licence-several', fixtureRecord(noDefault, { model_files: ['m.modelspec.json'], model_licence: 'MIT' })));
+  expectProblem((await check(ambiguous)).problems, /^graphs\/\$records\/licence-several\.yaml: m\.modelspec\.json declares no licence, and the repository's LICENSE files name several \((MIT, CC0-1\.0|CC0-1\.0, MIT)\); the file must declare its licence/);
+});
+
+test('a tag must be that exact tag, not a branch whose name ends like it', async () => {
+  const lookalike = origin('tag-lookalike', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 }, { branches: ['x/refs/tags/v1'] });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'tag-lookalike', fixtureRecord(lookalike, { tag: 'v1' })));
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/tag-lookalike\.yaml: tag v1 does not point at commit/);
+  const tagged = origin('tag-real', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 }, { tags: ['v1'] });
+  const real = registry((d) => writeRecord(d, 'graphs', 'tag-real', fixtureRecord(tagged, { tag: 'v1' })));
+  assert.deepEqual((await check(real)).problems, []);
+  const optionLike = registry((d) => writeRecord(d, 'graphs', 'tag-real', fixtureRecord(tagged, { tag: '--upload-pack=x' })));
+  expectProblem((await check(optionLike)).problems, /^graphs\/\$records\/tag-real\.yaml: tag must be a tag name/);
+});
+
+test('a missing meaning file, a stray record file and bad paths fail', async () => {
+  const missing = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), meaning_files: ['model/missing.meaning.yaml'] }));
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit 6f1bac9/);
+  const stray = registry((d) => writeFileSync(join(d, 'graphs', '$records', 'stray.yml'), 'x: 1\n'));
+  expectProblem((await check(stray)).problems, /^graphs\/\$records\/stray\.yml: a record is a <key>\.yaml file/);
+  const paths = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), meaning_files: ['../x.meaning.yaml', 'README.md'], model_files: ['a.hcl'], model_licence: 'MIT' }));
+  const { problems } = await check(paths);
+  expectProblem(problems, /^graphs\/\$records\/core\.yaml: meaning_files: "\.\.\/x\.meaning\.yaml" must be a relative path inside the repository/);
+  expectProblem(problems, /^graphs\/\$records\/core\.yaml: meaning_files: "README\.md" must name \*\.meaning\.yaml files/);
+  expectProblem(problems, /^graphs\/\$records\/core\.yaml: a universal graph has no model files/);
+});
+
+test('index.json is sorted by code unit, whatever the locale', () => {
+  const ids = ['ya', 'ia', 'a0', 'ab', 'a-b', 'aa'];
+  const index = JSON.parse(buildIndex({ graphs: ids.map((key) => ({ key, data: {} })), dependencies: [] }));
+  assert.deepEqual(index.graphs.map((graph) => graph.id), ['a-b', 'a0', 'aa', 'ab', 'ia', 'ya']);
+});
+
+test('a cached checker checkout is reused only after untracked and ignored files are removed', () => {
+  const source = origin('cache', { 'scripts/lib/meaning.mjs': 'export const ok = true;\n', '.gitignore': 'node_modules/\n' });
+  const cache = join(scratch, `fetch-cache-${count++}`);
+  const dir = fetchCommit(origins.get(source.repository), source.commit, cache);
+  writeFileSync(join(dir, 'planted.mjs'), 'planted\n');
+  mkdirSync(join(dir, 'node_modules'));
+  writeFileSync(join(dir, 'node_modules', 'planted.js'), 'planted\n');
+  writeFileSync(join(dir, 'scripts', 'lib', 'meaning.mjs'), 'export const ok = false;\n');
+  assert.equal(fetchCommit(origins.get(source.repository), source.commit, cache), dir);
+  assert.equal(existsSync(join(dir, 'planted.mjs')), false);
+  assert.equal(existsSync(join(dir, 'node_modules')), false);
+  assert.equal(readFileSync(join(dir, 'scripts', 'lib', 'meaning.mjs'), 'utf8'), 'export const ok = true;\n');
 });
 
 test('index.json that differs from the records fails', async () => {

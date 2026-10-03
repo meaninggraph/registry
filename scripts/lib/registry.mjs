@@ -15,6 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { devNull } from 'node:os';
 import { parse as parseYaml } from 'yaml';
 
 export const registryFormat = 'meaning-registry/draft-1';
@@ -27,13 +28,32 @@ export const checkerBranch = 'main';
 // digits and single hyphens, at most 80 characters.
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const commitPattern = /^[0-9a-f]{40}$/;
-const repositoryPattern = /^https:\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)+)((?:\/[A-Za-z0-9_.-]+){2,})$/;
+// No `.git` suffix: https://host/org/repo.git is the same repository as
+// https://host/org/repo, and draft-1 spells it one way.
+const repositoryPattern = /^https:\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)+)((?:\/[A-Za-z0-9_.-]+){2,})(?<!\.git)$/;
+const tagPattern = /^(?![-.\/])(?!.*\.\.)[A-Za-z0-9._\/-]+$/;
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/;
 // A path inside the repository: relative, no "..", and `*` matches within one
 // path segment only (so `*.meaning.yaml` means the repository root).
 const pathPattern = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9_.*\/-]+$/;
 
-const git = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, ...options }).toString();
+// git only ever talks https to a remote (GIT_ALLOW_PROTOCOL); tests add file
+// for local repositories that stand in for https URLs. Every URL or revision
+// that comes from a record is passed after --end-of-options, so a value that
+// starts with "-" can never be read as an option; records are also refused
+// before they reach git unless their repository is a well-formed https URL.
+// The user's and the system's git configuration are not read, so a local
+// insteadOf rewrite or hook setting cannot change what is fetched or run.
+let allowedProtocols = 'https';
+export const setGitProtocols = (protocols) => { allowedProtocols = protocols; };
+const gitEnv = () => ({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' });
+const git = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: gitEnv(), ...options }).toString();
+// A `run` for core's checkoutGit: the same environment, and --end-of-options
+// before `url` in its fetch.
+const runFor = (url) => (command, args) => {
+  const at = args.indexOf(url);
+  return git(at > 0 && args.slice(0, at).includes('fetch') ? [...args.slice(0, at), '--end-of-options', ...args.slice(at)] : args);
+};
 const lastLine = (error) => String(error.stderr ?? error.message).trim().split('\n').filter(Boolean).pop() ?? 'failed';
 
 const recordsDir = (root, collection) => join(root, collection, '$records');
@@ -69,9 +89,13 @@ export function readRegistry(root) {
 
 // meaning://{host}/{path} for https://{host}/{path}, or null.
 export function addressOf(repository) {
-  const match = repositoryPattern.exec(repository ?? '');
+  const match = typeof repository === 'string' && repositoryPattern.exec(repository);
   return match ? `meaning://${match[1]}${match[2]}` : null;
 }
+
+// A graph whose repository, address and commit are well formed: the only kind
+// whose values are ever handed to git.
+export const wellFormed = (graph) => Boolean(graph) && addressOf(graph.data.repository) !== null && addressOf(graph.data.repository) === graph.data.address && commitPattern.test(graph.data.commit ?? '');
 
 // Rules on the records alone (no network): the parts of the format that the
 // inGitDB collection definitions cannot express.
@@ -86,9 +110,12 @@ export function recordProblems({ graphs, dependencies }) {
     const address = addressOf(data.repository);
     if (!address) problems.push(`${file}: repository must be an https URL of a repository, such as https://github.com/{org}/{repo} (no trailing slash or .git)`);
     else if (data.address !== address) problems.push(`${file}: address must be ${address}, the meaning:// form of the repository (draft-1 registers one graph per repository)`);
+    // Hosts and most forges ignore case in org and repository names, so
+    // https://github.com/Datatug/ChinookDB is chinookdb again.
     for (const [map, value] of [[byAddress, data.address], [byRepository, data.repository]]) {
-      if (value !== undefined) map.set(value, [...(map.get(value) ?? []), { key, file }]);
+      if (typeof value === 'string') map.set(value.toLowerCase(), [...(map.get(value.toLowerCase()) ?? []), { key, file, value }]);
     }
+    if (data.tag !== undefined && !(typeof data.tag === 'string' && tagPattern.test(data.tag))) problems.push(`${file}: tag must be a tag name (letters, digits, ".", "_", "/", "-"; not starting with "-", ".", or "/")`);
     for (const column of ['meaning_licence', 'model_licence']) {
       if (data[column] !== undefined && !spdxPattern.test(data[column])) problems.push(`${file}: ${column} must be an SPDX licence identifier`);
     }
@@ -104,7 +131,7 @@ export function recordProblems({ graphs, dependencies }) {
   }
   for (const [map, what] of [[byAddress, 'address'], [byRepository, 'repository']]) {
     for (const [value, owners] of map) {
-      if (owners.length > 1) problems.push(`${owners.at(-1).file}: ${what} ${value} is registered under ${owners.length} ids (${owners.map((owner) => owner.key).join(', ')}); a graph is registered once`);
+      if (owners.length > 1) problems.push(`${owners.at(-1).file}: ${what} ${owners.at(-1).value} is registered under ${owners.length} ids (${owners.map((owner) => `${owner.key}: ${owner.value}`).join(', ')}, compared ignoring case); a graph is registered once`);
     }
   }
   for (const { key, file, data } of dependencies) {
@@ -117,21 +144,29 @@ export function recordProblems({ graphs, dependencies }) {
   return problems;
 }
 
-// Fetches one commit of a repository into cacheDir/<commit> (or reuses it when
-// it is still exactly that commit). Used only to bootstrap the checker; graphs
-// are fetched with the checker's own checkoutGit.
+// Fetches one commit of a repository into cacheDir/<commit>. A cached
+// checkout is reused only after it has been made exactly that commit again:
+// tracked files rewritten, every untracked and ignored file (node_modules
+// included) removed, and nothing left that differs. Used only to bootstrap the
+// checker; graphs are fetched with the checker's own checkoutGit.
 export function fetchCommit(url, commit, cacheDir) {
+  if (!commitPattern.test(commit)) throw new Error(`${commit} is not a full commit id`);
   const dir = join(cacheDir, commit);
   const at = (...args) => git(['--git-dir', join(dir, '.git'), '--work-tree', dir, ...args]).trim();
   try {
-    if (existsSync(dir) && at('rev-parse', 'HEAD') === commit && at('status', '--porcelain', '--untracked-files=no') === '') return dir;
+    if (existsSync(dir) && at('rev-parse', 'HEAD') === commit) {
+      at('read-tree', '--reset', '-u', 'HEAD');
+      at('checkout-index', '--all', '--force');
+      at('clean', '-ffdxq');
+      if (at('status', '--porcelain', '--ignored', '--untracked-files=all') === '') return dir;
+    }
   } catch { /* not a usable checkout: fetch it again */ }
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(cacheDir, { recursive: true });
   const work = mkdtempSync(join(cacheDir, '.fetch-'));
   try {
     git(['init', '-q', work]);
-    git(['-C', work, 'fetch', '-q', '--depth', '1', url, commit]);
+    git(['-C', work, 'fetch', '-q', '--depth', '1', '--end-of-options', url, commit]);
     git(['-C', work, 'checkout', '-q', 'FETCH_HEAD']);
     if (git(['-C', work, 'rev-parse', 'HEAD']).trim() !== commit) throw new Error('did not check out that commit');
     renameSync(work, dir);
@@ -144,7 +179,7 @@ export function fetchCommit(url, commit, cacheDir) {
 
 // The branch a repository's HEAD names (its default branch), from ls-remote.
 export function defaultBranch(url) {
-  const head = git(['ls-remote', '--symref', url, 'HEAD']);
+  const head = git(['ls-remote', '--symref', '--end-of-options', url, 'HEAD']);
   const match = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(head);
   if (!match) throw new Error(`${url} does not name a default branch`);
   return match[1];
@@ -158,15 +193,16 @@ export function defaultBranch(url) {
 // the commit is an ancestor of the branch (or the branch itself). A commit the
 // clone does not have is not in that history either.
 export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
+  if (!commitPattern.test(commit) || !tagPattern.test(branch)) return false;
   const dir = join(cacheDir, createHash('sha256').update(`${url}#${branch}`).digest('hex').slice(0, 32));
   const ref = `refs/heads/${branch}`;
   if (!fetched.has(dir)) {
     try {
-      if (existsSync(join(dir, 'HEAD'))) git(['-C', dir, 'fetch', '-q', '--force', url, `+${ref}:${ref}`]);
+      if (existsSync(join(dir, 'HEAD'))) git(['-C', dir, 'fetch', '-q', '--force', '--end-of-options', url, `+${ref}:${ref}`]);
       else {
         rmSync(dir, { recursive: true, force: true });
         mkdirSync(cacheDir, { recursive: true });
-        git(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, url, dir]);
+        git(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, '--end-of-options', url, dir]);
       }
     } catch (error) {
       throw new Error(`cannot read the history of ${branch} in ${url}: ${lastLine(error)}`);
@@ -174,7 +210,7 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
     fetched.add(dir);
   }
   try {
-    git(['-C', dir, 'merge-base', '--is-ancestor', commit, ref]);
+    git(['-C', dir, 'merge-base', '--is-ancestor', '--end-of-options', commit, ref]);
     return true;
   } catch {
     return false;
@@ -182,7 +218,8 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
 }
 
 // Loads scripts/lib/meaning.mjs of the `core` record's commit, installing its
-// locked dependencies (npm ci --ignore-scripts) on first use. The commit must
+// locked dependencies (npm ci --ignore-scripts) into the freshly verified
+// checkout once per process. The commit must
 // be in the history of meaninggraph/core's main branch: a commit that only a
 // fork has would otherwise run its own checker code in CI. Returns
 // { meaning, dir, commit }.
@@ -193,29 +230,45 @@ export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDi
   // The checker is code that CI runs, so it only ever comes from this repository.
   if (repository !== checkerRepository) throw new Error(`the ${checkerGraph} record must name ${checkerRepository}, where the checker lives, not ${repository}`);
   if (!commitPattern.test(commit ?? '')) throw new Error(`the ${checkerGraph} record's commit must be a full commit id`);
-  const dir = fetchCommit(urlFor(repository), commit, cacheDir);
   if (!onBranch(urlFor(repository), checkerBranch, commit, historyDir, fetched)) {
     throw new Error(`commit ${commit} of the ${checkerGraph} record is not in the history of ${checkerBranch} of ${checkerRepository} (a commit only a fork or another branch has); the checker is not run from it`);
   }
-  const entry = join(dir, 'scripts', 'lib', 'meaning.mjs');
-  if (!existsSync(entry)) throw new Error(`${repository} at ${commit} has no scripts/lib/meaning.mjs, so it cannot check meaning files`);
-  if (!existsSync(join(dir, 'node_modules'))) execFileSync('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund', '--silent'], { cwd: dir, stdio: 'pipe' });
-  return { meaning: await import(pathToFileURL(entry).href), dir, commit };
+  const key = `${urlFor(repository)}@${commit}@${cacheDir}`;
+  if (!checkers.has(key)) {
+    const dir = fetchCommit(urlFor(repository), commit, cacheDir);
+    const entry = join(dir, 'scripts', 'lib', 'meaning.mjs');
+    if (!existsSync(entry)) throw new Error(`${repository} at ${commit} has no scripts/lib/meaning.mjs, so it cannot check meaning files`);
+    execFileSync('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund', '--silent'], { cwd: dir, stdio: 'pipe' });
+    checkers.set(key, { meaning: await import(pathToFileURL(entry).href), dir, commit });
+  }
+  return checkers.get(key);
 }
+const checkers = new Map();
 
 const globRegExp = (pattern) => new RegExp(`^${pattern.split('*').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')}$`);
 
-// The tracked files of a checkout that each pattern matches: { files, missing }.
+// Tracked entries of a checkout as { path, mode }; 120000 is a symbolic link
+// and 160000 a submodule, neither of which is a file of this repository.
+const trackedEntries = (dir) => git(['-C', dir, 'ls-files', '-s', '-z']).split('\0').filter(Boolean).map((line) => {
+  const [meta, path] = line.split('\t');
+  return { path, mode: meta.split(' ')[0] };
+});
+const regularModes = new Set(['100644', '100755']);
+
+// The tracked files of a checkout that each pattern matches:
+// { files, missing, links } where `links` are matches that are not regular
+// files (symbolic links could point outside the checkout).
 export function expandPaths(dir, patterns) {
-  const tracked = git(['-C', dir, 'ls-files']).split('\n').filter(Boolean);
+  const tracked = trackedEntries(dir);
   const files = new Set();
+  const links = new Set();
   const missing = [];
   for (const pattern of patterns ?? []) {
-    const matched = pattern.includes('*') ? tracked.filter((path) => globRegExp(pattern).test(path)) : tracked.filter((path) => path === pattern);
+    const matched = tracked.filter(({ path }) => (pattern.includes('*') ? globRegExp(pattern).test(path) : path === pattern));
     if (matched.length === 0) missing.push(pattern);
-    matched.forEach((path) => files.add(path));
+    for (const { path, mode } of matched) (regularModes.has(mode) ? files : links).add(path);
   }
-  return { files: [...files].sort(), missing };
+  return { files: [...files].sort(), missing, links: [...links].sort() };
 }
 
 // Licence texts the check recognises in a repository's LICENSE files.
@@ -227,15 +280,23 @@ const licenceTexts = [
   ['BSD-3-Clause', /BSD 3-Clause/],
 ];
 
-// SPDX ids identified by the LICENSE* files in the repository root.
+// The SPDX ids that the tracked, regular LICENSE* files in the repository root
+// identify: { all, main } where `main` comes from the unsuffixed file
+// (LICENSE, LICENCE or COPYING, optionally .md or .txt), the repository's default.
 export function repositoryLicences(dir) {
-  const found = new Set();
-  for (const name of readdirSync(dir)) {
-    if (!/^(LICEN[CS]E|COPYING)/i.test(name)) continue;
-    const text = readFileSync(join(dir, name), 'utf8');
-    for (const [id, pattern] of licenceTexts) if (pattern.test(text)) found.add(id);
+  const all = new Set();
+  const main = new Set();
+  for (const { path, mode } of trackedEntries(dir)) {
+    if (path.includes('/') || !regularModes.has(mode) || !/^(LICEN[CS]E|COPYING)/i.test(path)) continue;
+    const text = readFileSync(join(dir, path), 'utf8');
+    const unsuffixed = /^(LICEN[CS]E|COPYING)(\.(md|txt))?$/i.test(path);
+    for (const [id, pattern] of licenceTexts) {
+      if (!pattern.test(text)) continue;
+      all.add(id);
+      if (unsuffixed) main.add(id);
+    }
   }
-  return found;
+  return { all, main };
 }
 
 // The licence a file states about itself: a meaning file's `license` field, or
@@ -250,17 +311,24 @@ export function declaredLicence(path, text, doc) {
 }
 
 // A file's licence must be the one the entry states: the licence the file
-// declares itself, or, when it declares none, one of the repository's LICENSE files.
+// declares itself, or, when it declares none, the repository's default
+// licence. The default is the one licence of the unsuffixed LICENSE file; with
+// no such file, the one licence all LICENSE files name. When that is not one
+// licence (several LICENSE files and no unsuffixed one, or an unsuffixed file
+// naming several), the file must declare its licence itself.
 function licenceProblems(file, dir, paths, expected, column) {
   const problems = [];
-  const fromLicenseFiles = repositoryLicences(dir);
+  const { all, main } = repositoryLicences(dir);
+  const fallback = main.size > 0 ? main : all;
   for (const path of paths) {
     const text = readFileSync(join(dir, path), 'utf8');
     let doc;
     if (path.endsWith('.meaning.yaml')) { try { doc = parseYaml(text); } catch { doc = null; } }
     const declared = declaredLicence(path, text, doc);
     if (declared !== null && declared !== expected) problems.push(`${file}: ${column} is ${expected}, but ${path} declares ${declared}`);
-    if (declared === null && !fromLicenseFiles.has(expected)) problems.push(`${file}: ${column} is ${expected}, but ${path} declares no licence and the repository's LICENSE files name ${fromLicenseFiles.size ? [...fromLicenseFiles].join(', ') : 'none the check recognises'}`);
+    if (declared !== null) continue;
+    if (fallback.size > 1) problems.push(`${file}: ${path} declares no licence, and the repository's LICENSE files name several (${[...fallback].join(', ')}); the file must declare its licence (a Licence: or SPDX-License-Identifier: line at the top)`);
+    else if (!fallback.has(expected)) problems.push(`${file}: ${column} is ${expected}, but ${path} declares no licence and the repository's default licence (its LICENSE file) is ${fallback.size ? [...fallback][0] : 'none the check recognises'}`);
   }
   return problems;
 }
@@ -273,17 +341,22 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
   const schemaPath = join(checker.dir, 'meaning.schema.json');
   const problems = [];
   const byAddress = new Map(registry.graphs.map((graph) => [graph.data.address, graph]));
+  const byKey = new Map(registry.graphs.map((graph) => [graph.key, graph]));
   const checkouts = new Map();
+  // Only well-formed graphs and full commit ids ever reach git.
   const checkout = (graph, commit) => {
+    if (!wellFormed(graph) || !commitPattern.test(commit)) return { error: `${graph.file} is not well formed, so it is not fetched` };
     const key = `${graph.data.repository}@${commit}`;
     if (!checkouts.has(key)) {
-      try { checkouts.set(key, meaning.checkoutGit(urlFor(graph.data.repository), commit, { cacheDir, retries: 2 })); } catch (error) { checkouts.set(key, { error: error.message }); }
+      const url = urlFor(graph.data.repository);
+      try { checkouts.set(key, meaning.checkoutGit(url, commit, { cacheDir, retries: 2, run: runFor(url) })); } catch (error) { checkouts.set(key, { error: error.message }); }
     }
     return checkouts.get(key);
   };
   // A graph's commit, and every commit another graph pins it at, must be in
   // the history of its repository's default branch (see onBranch).
   const offBranch = (graph, commit) => {
+    if (!wellFormed(graph) || !commitPattern.test(commit)) return `${graph.file} is not well formed, so its history is not read`;
     const url = urlFor(graph.data.repository);
     try {
       if (!branches.has(url)) branches.set(url, defaultBranch(url));
@@ -301,16 +374,21 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
   const readGraph = (graph, commit) => {
     const at = checkout(graph, commit);
     if (at.error) return { error: at.error };
-    const { files, missing } = expandPaths(at.dir, graph.data.meaning_files);
+    const { files, missing, links } = expandPaths(at.dir, graph.data.meaning_files);
     if (missing.length) return { error: `${missing.join(', ')} not found at ${commit}` };
+    if (links.length) return { error: `${links.join(', ')} ${links.length === 1 ? 'is' : 'are'} not a regular file at ${commit} (a symbolic link or submodule); meaning files must be files of the repository` };
     const address = graph.data.address.slice('meaning://'.length);
-    const docs = files.map((path) => ({ path: join(at.dir, path), doc: parseYaml(readFileSync(join(at.dir, path), 'utf8')) }));
+    const docs = [];
+    for (const path of files) {
+      try { docs.push({ path: join(at.dir, path), doc: parseYaml(readFileSync(join(at.dir, path), 'utf8')) }); } catch (error) { return { error: `${path} is not YAML: ${error.message.split('\n')[0]}` }; }
+    }
     return { ...meaning.indexConcepts(docs, address), dir: at.dir, relative: files };
   };
   // meaning://{repo}?ref={commit} resolves through the registry: the graph registered at that address.
   const resolve = (repo, ref) => {
     const graph = byAddress.get(`meaning://${repo}`);
     if (!graph) return { error: `meaning://${repo} is not registered in this registry` };
+    if (!wellFormed(graph)) return { error: `meaning://${repo} is registered by ${graph.file}, which is not well formed (its repository must be the https URL whose meaning:// form is its address), so it is not read` };
     if (!ref) return { error: `meaning://${repo} needs a ?ref= pin` };
     const off = commitPattern.test(ref) ? offBranch(graph, ref) : `?ref=${ref} must be a full commit id`;
     if (off) return { error: `meaning://${repo}?ref=${ref}: ${off}` };
@@ -318,36 +396,50 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
     return index.error ? { error: `meaning://${repo}?ref=${ref} cannot be read: ${index.error}` } : index;
   };
 
+  const offChecked = new Set();
   for (const graph of registry.graphs) {
     const { file, data } = graph;
-    if (!commitPattern.test(data.commit ?? '') || !addressOf(data.repository)) continue; // reported by recordProblems
+    if (!wellFormed(graph)) continue; // reported by recordProblems; never handed to git
     const at = checkout(graph, data.commit);
     if (at.error) { problems.push(`${file}: ${at.error}`); continue; }
     const off = offBranch(graph, data.commit);
     if (off) { problems.push(`${file}: ${off}`); continue; }
     if (data.tag) {
-      try {
-        const tagged = git(['-C', at.dir, 'ls-remote', urlFor(data.repository), `refs/tags/${data.tag}`, `refs/tags/${data.tag}^{}`]).trim().split('\n').filter(Boolean).map((line) => line.split('\t')[0]);
-        if (!tagged.includes(data.commit)) problems.push(`${file}: tag ${data.tag} does not point at commit ${data.commit}`);
-      } catch (error) { problems.push(`${file}: tag ${data.tag} cannot be read: ${lastLine(error)}`); }
+      if (typeof data.tag === 'string' && tagPattern.test(data.tag)) {
+        try {
+          // Exact ref names: ls-remote patterns also match tails such as refs/heads/x/refs/tags/<tag>.
+          const names = new Set([`refs/tags/${data.tag}`, `refs/tags/${data.tag}^{}`]);
+          const tagged = git(['ls-remote', '--end-of-options', urlFor(data.repository), `refs/tags/${data.tag}`]).trim().split('\n').filter(Boolean).map((line) => line.split('\t')).filter(([, name]) => names.has(name)).map(([sha]) => sha);
+          if (!tagged.includes(data.commit)) problems.push(`${file}: tag ${data.tag} does not point at commit ${data.commit}`);
+        } catch (error) { problems.push(`${file}: tag ${data.tag} cannot be read: ${lastLine(error)}`); }
+      }
     }
     const meaningFiles = expandPaths(at.dir, data.meaning_files);
     const modelFiles = expandPaths(at.dir, data.model_files);
     for (const [column, missing] of [['meaning_files', meaningFiles.missing], ['model_files', modelFiles.missing]]) {
       for (const path of missing) problems.push(`${file}: ${column}: ${path} does not exist at commit ${data.commit}`);
     }
-    if (meaningFiles.missing.length) continue;
+    for (const [column, links] of [['meaning_files', meaningFiles.links], ['model_files', modelFiles.links]]) {
+      for (const path of links) problems.push(`${file}: ${column}: ${path} is not a regular file at commit ${data.commit} (a symbolic link or submodule); list files of the repository`);
+    }
+    if (meaningFiles.missing.length || meaningFiles.links.length || modelFiles.links.length) continue;
     const local = loadGraph(graph, data.commit);
     if (local.error) { problems.push(`${file}: ${local.error}`); continue; }
-    const selfRepo = data.address.slice('meaning://'.length);
     const strip = (text) => text.replaceAll(`${at.dir}/`, '');
-    problems.push(...meaning.checkMeaning({ local, resolve, schemaPath, selfRepo }).map((problem) => `${file}: ${strip(problem)}`));
-    // Models a meaning file reads must be listed, so that model_licence covers them.
+    // Models a meaning file reads must be listed files of the repository, so
+    // that model_licence covers them; checked before the checker reads them.
+    let modelsListed = true;
     for (const { path, doc } of local.files) {
       for (const model of Object.values(doc?.models ?? {})) {
+        const where = `${file}: ${strip(path)}`;
+        if (typeof model !== 'string' || model.startsWith('/') || model.split('/').includes('..')) { problems.push(`${where}: models: "${model}" must be a relative path that stays inside the repository (no "..")`); modelsListed = false; continue; }
         const relative = join(path, '..', model).slice(at.dir.length + 1);
-        if (!modelFiles.files.includes(relative)) problems.push(`${file}: ${strip(path)} reads the model ${relative}; list it in model_files`);
+        if (!modelFiles.files.includes(relative)) { problems.push(`${where} reads the model ${relative}; list it in model_files`); modelsListed = false; }
       }
+    }
+    if (modelsListed) {
+      const selfRepo = data.address.slice('meaning://'.length);
+      problems.push(...meaning.checkMeaning({ local, resolve, schemaPath, selfRepo }).map((problem) => `${file}: ${strip(problem)}`));
     }
     problems.push(...licenceProblems(file, at.dir, meaningFiles.files, data.meaning_licence, 'meaning_licence'));
     if (data.model_licence) problems.push(...licenceProblems(file, at.dir, modelFiles.files, data.model_licence, 'model_licence'));
@@ -355,11 +447,18 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
     const declared = new Map(registry.dependencies.filter((dep) => dep.data.graph === graph.key).map((dep) => [dep.data.depends_on, dep]));
     const referenced = new Set();
     for (const [address, other] of byAddress) {
-      if (other === graph) continue;
+      if (other === graph || !wellFormed(other)) continue;
       const repo = address.slice('meaning://'.length);
       const pins = [...new Set(local.files.flatMap(({ doc }) => meaning.pinsOf(doc, repo)))];
       if (pins.length === 0) continue;
       referenced.add(other.key);
+      // Every pin, wherever in the files it is written, must be on the dependency's default branch.
+      for (const pin of pins) {
+        if (!commitPattern.test(pin)) { problems.push(`${file}: the meaning files pin ${address} at "${pin}"; a pin is a full commit id`); continue; }
+        const off = offBranch(other, pin);
+        if (off) problems.push(`${file}: the meaning files pin ${address} at ${pin}: ${off}`);
+        offChecked.add(`${other.key}@${pin}`);
+      }
       const dep = declared.get(other.key);
       if (!dep) problems.push(`${file}: the meaning files reference ${address} (pinned ${pins.join(', ')}); add dependencies/$records/${graph.key}--${other.key}.yaml`);
       else if (!pins.includes(dep.data.commit) || pins.length > 1) problems.push(`${dep.file}: commit is ${dep.data.commit}, but the meaning files of ${graph.key} pin ${address} at ${pins.join(', ')}`);
@@ -368,18 +467,27 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
       if (!referenced.has(dependsOn)) problems.push(`${dep.file}: ${graph.key} does not reference ${dependsOn} at commit ${data.commit}; remove the dependency`);
     }
   }
+  // Every dependency record's commit must be on the dependency's default branch too.
+  for (const { file, data } of registry.dependencies) {
+    const other = byKey.get(data.depends_on);
+    if (!wellFormed(other) || !commitPattern.test(data.commit ?? '') || offChecked.has(`${other.key}@${data.commit}`)) continue;
+    const off = offBranch(other, data.commit);
+    if (off) problems.push(`${file}: ${off}`);
+  }
   for (const at of checkouts.values()) at.release?.();
   return problems;
 }
 
 // index.json: every graph with its dependencies, sorted by id, and a sha256 of
 // the graphs array as written (compact JSON) so a consumer can verify one fetch.
+// Code-unit order, the same in every locale.
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 export function buildIndex(registry) {
   const graphs = registry.graphs.map(({ key, data }) => ({
     id: key,
     ...data,
-    depends: registry.dependencies.filter((dep) => dep.data.graph === key).map((dep) => ({ id: dep.data.depends_on, commit: dep.data.commit })).sort((a, b) => a.id.localeCompare(b.id)),
-  })).sort((a, b) => a.id.localeCompare(b.id));
+    depends: registry.dependencies.filter((dep) => dep.data.graph === key).map((dep) => ({ id: dep.data.depends_on, commit: dep.data.commit })).sort(byId),
+  })).sort(byId);
   const checksum = `sha256:${createHash('sha256').update(JSON.stringify(graphs)).digest('hex')}`;
   return `${JSON.stringify({ format: registryFormat, checksum, graphs }, null, 2)}\n`;
 }

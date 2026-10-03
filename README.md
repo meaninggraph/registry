@@ -57,8 +57,8 @@ Ways to read it:
 
 - **Plain files.** Fetch `graphs/$records/<id>.yaml`, or `index.json` for
   everything at once.
-- **The inGitDB CLI**, without a clone:
-  `ingitdb select --remote github.com/meaninggraph/registry --from graphs --where 'address==meaning://github.com/datatug/chinookdb' --fields '$id,repository,commit'`
+- **The inGitDB CLI**, in a clone:
+  `ingitdb select --path . --from graphs --where 'address==meaning://github.com/datatug/chinookdb' --fields '$id,repository,commit'`
 - **Go, through [DALgo](https://github.com/dal-go/dalgo)**, with the
   [`dalgo2ingitdb`](https://github.com/ingitdb/dalgo2ingitdb) adapter.
 
@@ -81,7 +81,7 @@ The file name is the registry id: `graphs/$records/chinook.yaml` registers
 | `kind` | yes | `universal` (concepts for any dataset, such as `core`) or `dataset` (the meaning of one dataset, bound to its model). |
 | `status` | yes | `draft`, `published` or `deprecated`. |
 | `address` | yes | What consumers write: `meaning://{host}/{org}/{repo}`, the `meaning://` form of `repository`. |
-| `repository` | yes | The repository's https URL, without `.git` or a trailing slash. |
+| `repository` | yes | The repository's https URL, without `.git` or a trailing slash. Two spellings that differ only in case are the same repository. |
 | `commit` | yes | Full 40-character commit id of the current reviewed version. |
 | `tag` | no | A tag that points at `commit`, when the graph has one. |
 | `meaning_files` | yes | The meaning files, as paths in the repository. `*` matches within one path segment, so `*.meaning.yaml` means every meaning file in the repository root. |
@@ -193,8 +193,13 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      graph resolves through this registry, at the commit it pins;
    - the licence each file declares (a meaning file's `license`, or a
      `Licence:` / `SPDX-License-Identifier:` line at the top of a model file)
-     is the one the entry states; a file that declares none is covered by one
-     of the repository's `LICENSE` files naming it;
+     is the one the entry states. A file that declares none takes the
+     repository's default licence: the one licence of its unsuffixed
+     `LICENSE` (or `LICENCE`, `COPYING`) file, or, without one, the one
+     licence all its LICENSE files name. When that is not a single licence,
+     the file must declare its own;
+   - listed files, and the models a meaning file reads, are regular files of
+     the repository: no symbolic links, no `..`;
    - the dependency records are exactly the registered graphs the meaning
      files reference, at the commits they pin.
 
@@ -213,8 +218,13 @@ missing path, a meaning file that does not fit the schema, a licence that
 differs from the files, the same graph under a second id, a wrong address, a
 dependency at the wrong commit, a missing or unused dependency, a reference to
 an unregistered graph, an unlisted model, a stale `index.json`, a graph
-commit or a checker commit that is not on the default branch, and a checker
-taken from another repository.
+commit, a pin or a checker commit that is not on the default branch, a
+checker taken from another repository, the same repository spelled with
+`.git` or in another case, a repository value shaped like a git option, a
+model path that leaves the repository, a symbolic link, an undeclared licence
+where the repository's default is ambiguous, and a tag lookalike.
+`npm run test:ingitdb` (with `INGITDB_CLI` set to the CLI) proves inGitDB
+rejects each broken constraint of the collection definitions.
 
 ## Planned search index
 
