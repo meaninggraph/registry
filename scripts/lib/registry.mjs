@@ -28,9 +28,10 @@ export const checkerBranch = 'main';
 // digits and single hyphens, at most 80 characters.
 const idPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const commitPattern = /^[0-9a-f]{40}$/;
-// No `.git` suffix: https://host/org/repo.git is the same repository as
-// https://host/org/repo, and draft-1 spells it one way.
-const repositoryPattern = /^https:\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)+)((?:\/[A-Za-z0-9_.-]+){2,})(?<!\.git)$/;
+// The hosts a graph may live on, each with the number of path segments that
+// name a repository there. Adding a host is a reviewed change to this list.
+export const repositoryHosts = new Map([['github.com', 2]]);
+const segmentPattern = /^[A-Za-z0-9_.-]+$/;
 const tagPattern = /^(?![-.\/])(?!.*\.\.)[A-Za-z0-9._\/-]+$/;
 const spdxPattern = /^[A-Za-z0-9][A-Za-z0-9.+-]*$/;
 // A path inside the repository: relative, no "..", and `*` matches within one
@@ -46,7 +47,15 @@ const pathPattern = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9_.*\/-]+$/;
 // insteadOf rewrite or hook setting cannot change what is fetched or run.
 let allowedProtocols = 'https';
 export const setGitProtocols = (protocols) => { allowedProtocols = protocols; };
-const gitEnv = () => ({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' });
+// Every inherited GIT_* variable is dropped (GIT_DIR, GIT_WORK_TREE,
+// GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_CONFIG_*, ...), so an outer
+// repository or hook environment cannot redirect these commands; only the TLS
+// trust settings and tracing pass through.
+const keptGitVariables = new Set(['GIT_SSL_CAINFO', 'GIT_SSL_CAPATH', 'GIT_TRACE', 'GIT_TRACE_PACKET', 'GIT_CURL_VERBOSE']);
+const gitEnv = () => ({
+  ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_') || keptGitVariables.has(name))),
+  GIT_TERMINAL_PROMPT: '0', GIT_ALLOW_PROTOCOL: allowedProtocols, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1',
+});
 const git = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: gitEnv(), ...options }).toString();
 // A `run` for core's checkoutGit: the same environment, and --end-of-options
 // before `url` in its fetch.
@@ -87,10 +96,18 @@ export function readRegistry(root) {
   };
 }
 
-// meaning://{host}/{path} for https://{host}/{path}, or null.
+// meaning://{host}/{path} for https://{host}/{path}, or null. One spelling per
+// repository: an allow-listed host (no www., no IP literal, no port, no user),
+// exactly the host's number of path segments, none of them "." or "..", no
+// `.git` suffix in any case (https://github.com/org/repo.git is
+// https://github.com/org/repo), no trailing slash, query or fragment.
 export function addressOf(repository) {
-  const match = typeof repository === 'string' && repositoryPattern.exec(repository);
-  return match ? `meaning://${match[1]}${match[2]}` : null;
+  if (typeof repository !== 'string' || !repository.startsWith('https://')) return null;
+  const [host, ...segments] = repository.slice('https://'.length).split('/');
+  if (!repositoryHosts.has(host) || segments.length !== repositoryHosts.get(host)) return null;
+  if (!segments.every((segment) => segmentPattern.test(segment) && segment !== '.' && segment !== '..')) return null;
+  if (/\.git$/i.test(segments.at(-1))) return null;
+  return `meaning://${host}/${segments.join('/')}`;
 }
 
 // A graph whose repository, address and commit are well formed: the only kind
@@ -108,7 +125,7 @@ export function recordProblems({ graphs, dependencies }) {
     if (!idPattern.test(key) || key.length > 80) problems.push(`${file}: id "${key}" must be lower-case letters, digits and single hyphens, at most 80 characters`);
     if (!commitPattern.test(data.commit ?? '')) problems.push(`${file}: commit must be a full 40-character lower-case commit id`);
     const address = addressOf(data.repository);
-    if (!address) problems.push(`${file}: repository must be an https URL of a repository, such as https://github.com/{org}/{repo} (no trailing slash or .git)`);
+    if (!address) problems.push(`${file}: repository must be an https URL of a repository on ${[...repositoryHosts.keys()].join(', ')}, such as https://github.com/{org}/{repo} (no trailing slash, .git, "." or ".." segments)`);
     else if (data.address !== address) problems.push(`${file}: address must be ${address}, the meaning:// form of the repository (draft-1 registers one graph per repository)`);
     // Hosts and most forges ignore case in org and repository names, so
     // https://github.com/Datatug/ChinookDB is chinookdb again.
@@ -281,22 +298,27 @@ const licenceTexts = [
 ];
 
 // The SPDX ids that the tracked, regular LICENSE* files in the repository root
-// identify: { all, main } where `main` comes from the unsuffixed file
-// (LICENSE, LICENCE or COPYING, optionally .md or .txt), the repository's default.
+// identify: { all, main, hasMain } where `main` comes from the unsuffixed file
+// (LICENSE, LICENCE or COPYING, optionally .md or .txt), the repository's
+// default, and `hasMain` says whether such a file is tracked at all (a link
+// or a text the check does not recognise still counts as the default).
 export function repositoryLicences(dir) {
   const all = new Set();
   const main = new Set();
+  let hasMain = false;
   for (const { path, mode } of trackedEntries(dir)) {
-    if (path.includes('/') || !regularModes.has(mode) || !/^(LICEN[CS]E|COPYING)/i.test(path)) continue;
-    const text = readFileSync(join(dir, path), 'utf8');
+    if (path.includes('/') || !/^(LICEN[CS]E|COPYING)/i.test(path)) continue;
     const unsuffixed = /^(LICEN[CS]E|COPYING)(\.(md|txt))?$/i.test(path);
+    hasMain ||= unsuffixed;
+    if (!regularModes.has(mode)) continue;
+    const text = readFileSync(join(dir, path), 'utf8');
     for (const [id, pattern] of licenceTexts) {
       if (!pattern.test(text)) continue;
       all.add(id);
       if (unsuffixed) main.add(id);
     }
   }
-  return { all, main };
+  return { all, main, hasMain };
 }
 
 // The licence a file states about itself: a meaning file's `license` field, or
@@ -312,14 +334,14 @@ export function declaredLicence(path, text, doc) {
 
 // A file's licence must be the one the entry states: the licence the file
 // declares itself, or, when it declares none, the repository's default
-// licence. The default is the one licence of the unsuffixed LICENSE file; with
-// no such file, the one licence all LICENSE files name. When that is not one
-// licence (several LICENSE files and no unsuffixed one, or an unsuffixed file
-// naming several), the file must declare its licence itself.
+// licence. The default is the licence of the unsuffixed LICENSE file when
+// there is one (even if the check does not recognise its text); with no such
+// file, the one licence all LICENSE files name. When that is not exactly one
+// recognised licence, the file must declare its licence itself.
 function licenceProblems(file, dir, paths, expected, column) {
   const problems = [];
-  const { all, main } = repositoryLicences(dir);
-  const fallback = main.size > 0 ? main : all;
+  const { all, main, hasMain } = repositoryLicences(dir);
+  const fallback = hasMain ? main : all;
   for (const path of paths) {
     const text = readFileSync(join(dir, path), 'utf8');
     let doc;
@@ -327,8 +349,9 @@ function licenceProblems(file, dir, paths, expected, column) {
     const declared = declaredLicence(path, text, doc);
     if (declared !== null && declared !== expected) problems.push(`${file}: ${column} is ${expected}, but ${path} declares ${declared}`);
     if (declared !== null) continue;
-    if (fallback.size > 1) problems.push(`${file}: ${path} declares no licence, and the repository's LICENSE files name several (${[...fallback].join(', ')}); the file must declare its licence (a Licence: or SPDX-License-Identifier: line at the top)`);
-    else if (!fallback.has(expected)) problems.push(`${file}: ${column} is ${expected}, but ${path} declares no licence and the repository's default licence (its LICENSE file) is ${fallback.size ? [...fallback][0] : 'none the check recognises'}`);
+    const licenceFiles = hasMain ? 'LICENSE file names' : 'LICENSE files name';
+    if (fallback.size !== 1) problems.push(`${file}: ${path} declares no licence, and the repository's ${licenceFiles} ${fallback.size ? `several (${[...fallback].join(', ')})` : 'no licence the check recognises'}; the file must declare its licence (a Licence: or SPDX-License-Identifier: line at the top)`);
+    else if (!fallback.has(expected)) problems.push(`${file}: ${column} is ${expected}, but ${path} declares no licence and the repository's default licence (its LICENSE file) is ${[...fallback][0]}`);
   }
   return problems;
 }

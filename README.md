@@ -81,7 +81,7 @@ The file name is the registry id: `graphs/$records/chinook.yaml` registers
 | `kind` | yes | `universal` (concepts for any dataset, such as `core`) or `dataset` (the meaning of one dataset, bound to its model). |
 | `status` | yes | `draft`, `published` or `deprecated`. |
 | `address` | yes | What consumers write: `meaning://{host}/{org}/{repo}`, the `meaning://` form of `repository`. |
-| `repository` | yes | The repository's https URL, without `.git` or a trailing slash. Two spellings that differ only in case are the same repository. |
+| `repository` | yes | The repository's https URL on an allowed host (today only `github.com`), as `https://github.com/{org}/{repo}`: no `.git`, trailing slash, `.` or `..` segments. Two spellings that differ only in case are the same repository. |
 | `commit` | yes | Full 40-character commit id of the current reviewed version. |
 | `tag` | no | A tag that points at `commit`, when the graph has one. |
 | `meaning_files` | yes | The meaning files, as paths in the repository. `*` matches within one path segment, so `*.meaning.yaml` means every meaning file in the repository root. |
@@ -140,7 +140,10 @@ Open a pull request that adds:
 4. The regenerated `index.json`: `npm ci && npm run index`.
 
 Run the checks locally with `ingitdb validate` and `npm run check`; CI runs both
-on the pull request.
+on the pull request. The check runs git over https only and ignores your
+global and system git configuration (so an `insteadOf` rewrite to ssh does
+not apply) and any inherited `GIT_*` repository variables. Behind a proxy or
+a private certificate authority, set `HTTPS_PROXY` or `GIT_SSL_CAINFO`.
 
 ## How to use it
 
@@ -194,10 +197,11 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
    - the licence each file declares (a meaning file's `license`, or a
      `Licence:` / `SPDX-License-Identifier:` line at the top of a model file)
      is the one the entry states. A file that declares none takes the
-     repository's default licence: the one licence of its unsuffixed
-     `LICENSE` (or `LICENCE`, `COPYING`) file, or, without one, the one
-     licence all its LICENSE files name. When that is not a single licence,
-     the file must declare its own;
+     repository's default licence: the licence of its unsuffixed `LICENSE`
+     (or `LICENCE`, `COPYING`) file when there is one, even one whose text
+     the check does not recognise, or, without one, the one licence all its
+     LICENSE files name. When that is not a single recognised licence, the
+     file must declare its own;
    - listed files, and the models a meaning file reads, are regular files of
      the repository: no symbolic links, no `..`;
    - the dependency records are exactly the registered graphs the meaning

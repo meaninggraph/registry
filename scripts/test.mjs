@@ -11,10 +11,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, checkRegistry, checkerRepository, declaredLicence, defaultBranch, fetchCommit, loadChecker, readRegistry, setGitProtocols } from './lib/registry.mjs';
+import { buildIndex, checkRegistry, checkerRepository, declaredLicence, defaultBranch, fetchCommit, loadChecker, readRegistry, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
 
-// The local repositories that stand in for https URLs are file:// URLs.
+// The local repositories that stand in for https URLs are file:// URLs, at
+// https://example.test/fixtures/<name>; the tests allow that host.
 setGitProtocols('https:file');
+repositoryHosts.set('example.test', 2);
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const cacheDir = join(root, '.cache');
@@ -274,7 +276,7 @@ test('the same repository spelled with .git or in another case is refused', asyn
     writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/datatug/chinookdb.git', address: 'meaning://github.com/datatug/chinookdb.git' });
     writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
   });
-  expectProblem((await check(dotGit)).problems, /^graphs\/\$records\/chinook-dup\.yaml: repository must be an https URL of a repository, such as https:\/\/github\.com\/\{org\}\/\{repo\} \(no trailing slash or \.git\)/);
+  expectProblem((await check(dotGit)).problems, /^graphs\/\$records\/chinook-dup\.yaml: repository must be an https URL of a repository on github\.com, example\.test, such as https:\/\/github\.com\/\{org\}\/\{repo\} \(no trailing slash, \.git, "\." or "\.\." segments\)/);
   const cased = registry((d) => {
     writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/Datatug/ChinookDB', address: 'meaning://github.com/Datatug/ChinookDB' });
     writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
@@ -356,6 +358,53 @@ test('a cached checker checkout is reused only after untracked and ignored files
   assert.equal(existsSync(join(dir, 'planted.mjs')), false);
   assert.equal(existsSync(join(dir, 'node_modules')), false);
   assert.equal(readFileSync(join(dir, 'scripts', 'lib', 'meaning.mjs'), 'utf8'), 'export const ok = true;\n');
+});
+
+// S2-r2: one spelling per repository, on an allow-listed host, refused before git runs.
+test('dot segments, host aliases, IP literals and a .GIT suffix are refused before git runs', async () => {
+  for (const repository of [
+    'https://github.com/datatug/chinookdb/.',
+    'https://github.com/datatug/./chinookdb',
+    'https://github.com/datatug/x/../chinookdb',
+    'https://www.github.com/datatug/chinookdb',
+    'https://127.0.0.1/a/b',
+    'https://github.com/meaninggraph/../datatug/chinookdb',
+    'https://github.com/datatug/chinookdb.GIT',
+    'https://github.com:443/datatug/chinookdb',
+    'https://user@github.com/datatug/chinookdb',
+  ]) {
+    const dir = registry((d) => {
+      writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository, address: `meaning://${repository.slice('https://'.length)}` });
+      writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
+    });
+    const asked = [];
+    const { problems } = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen });
+    expectProblem(problems, /^graphs\/\$records\/chinook-dup\.yaml: repository must be an https URL of a repository on github\.com/);
+    assert.ok(!asked.includes(repository), `${repository} reached git`);
+  }
+});
+
+test('an unsuffixed LICENSE the check does not recognise is still the default, so the file must declare', async () => {
+  const source = origin('licence-unrecognised', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', LICENSE: 'GNU GENERAL PUBLIC LICENSE\nVersion 3, 29 June 2007\n', 'LICENSE-CC0': CC0 });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'licence-unrecognised', fixtureRecord(source, { model_files: ['m.modelspec.json'], model_licence: 'CC0-1.0' })));
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/licence-unrecognised\.yaml: m\.modelspec\.json declares no licence, and the repository's LICENSE file names no licence the check recognises; the file must declare its licence/);
+});
+
+test('inherited GIT_* repository variables cannot redirect the git commands', () => {
+  const source = origin('environment', { README: 'x\n' });
+  const url = origins.get(source.repository);
+  const bogus = join(scratch, `not-a-repository-${count++}`);
+  const names = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_CONFIG_PARAMETERS'];
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  Object.assign(process.env, { GIT_DIR: bogus, GIT_WORK_TREE: bogus, GIT_INDEX_FILE: join(bogus, 'index'), GIT_OBJECT_DIRECTORY: bogus, GIT_CONFIG_PARAMETERS: "'protocol.allow=never'" });
+  try {
+    assert.equal(defaultBranch(url), 'main');
+    const dir = fetchCommit(url, source.commit, join(scratch, `env-cache-${count++}`));
+    assert.equal(readFileSync(join(dir, 'README'), 'utf8'), 'x\n');
+    assert.equal(existsSync(bogus), false, 'nothing was written where GIT_DIR pointed');
+  } finally {
+    for (const name of names) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
+  }
 });
 
 test('index.json that differs from the records fails', async () => {
