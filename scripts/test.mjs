@@ -7,14 +7,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { deflateSync } from 'node:zlib';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, loadChecker, onBranch, readRegistry, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
+import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, intactCheckout, loadChecker, onBranch, readRegistry, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
 
 // The local repositories that stand in for https URLs are file:// URLs, at
 // https://example.test/fixtures/<name>; the tests allow that host.
@@ -442,7 +442,27 @@ const plantHooks = (gitDir, marker) => {
   for (const hook of hooks) script(join(gitDir, 'hooks', hook), hook, marker);
 };
 
-test('git runs no hook and no fsmonitor of a repository it works in', () => {
+// An index that says the file at `path` of the checkout `dir` is the commit's
+// own, while it holds `content`: the altered file is added, then the commit's
+// blob id is written back over the new one in the index (and the index
+// checksum redone). The file is older than the index, so git does not read
+// it again to compare.
+function forgeIndex(dir, path, content) {
+  const own = (args) => plainGit(['--git-dir', join(dir, '.git'), '--work-tree', dir, ...args]);
+  const genuine = own(['rev-parse', `HEAD:${path}`]);
+  writeFileSync(join(dir, path), content);
+  const before = new Date(Date.now() - 60_000);
+  utimesSync(join(dir, path), before, before);
+  own(['add', '--', path]);
+  const index = readFileSync(join(dir, '.git', 'index'));
+  Buffer.from(genuine, 'hex').copy(index, index.indexOf(Buffer.from(own(['rev-parse', `:${path}`]), 'hex')));
+  createHash('sha1').update(index.subarray(0, -20)).digest().copy(index, index.length - 20);
+  writeFileSync(join(dir, '.git', 'index'), index);
+  assert.equal(own(['status', '--porcelain', '--ignored', '--untracked-files=all']), '', 'git reports no difference');
+  assert.equal(own(['ls-files', '-v']).split('\n').every((line) => line.startsWith('H ')), true, 'no entry is flagged');
+}
+
+test('git runs no hook from a hooks directory and no fsmonitor of a repository it works in', () => {
   const source = origin('hooks', { README: 'x\n' });
   const dir = fileURLToPath(origins.get(source.repository));
   const marker = join(scratch, `MARKER-${count++}`);
@@ -506,6 +526,7 @@ test('a cached checkout is reused when intact, and fetched again when an object 
     return !existsSync(sentinel);
   };
   assert.equal(refetched(), false, 'an intact checkout is reused');
+  assert.equal(intactCheckout(dir), true);
 
   // Under the id of the file's blob, other content (as loose objects: git
   // reads a pack first). git checks the file out from it without complaint.
@@ -523,6 +544,7 @@ test('a cached checkout is reused when intact, and fetched again when an object 
   own(['read-tree', '--reset', '-u', 'HEAD']);
   own(['checkout-index', '--all', '--force']);
   assert.equal(readFileSync(join(dir, 'checker.mjs'), 'utf8'), forged, 'git checks out the forged content');
+  assert.equal(intactCheckout(dir), false, 'git fsck finds the forged object');
   assert.equal(refetched(), true, 'a checkout with a forged object is fetched again');
   own(['fsck', '--no-dangling', '--no-progress']);
 
@@ -537,13 +559,31 @@ test('a cached checkout is reused when intact, and fetched again when an object 
   own(['checkout-index', '--all', '--force']);
   assert.equal(own(['status', '--porcelain', '--ignored', '--untracked-files=all']), '');
   assert.equal(readFileSync(join(dir, 'checker.mjs'), 'utf8'), forged, 'git follows the replacement unless told not to');
-  refetched();
+  assert.equal(refetched(), false, 'the checkout is reused, with the replacement ignored');
+  own(['replace', '-d', own(['rev-parse', 'HEAD^{tree}'], { env: { ...process.env, GIT_NO_REPLACE_OBJECTS: '1' } })]);
+
+  // An index that keeps git from rewriting an altered file. What a checkout
+  // had to pass before leaves the file as it is each time.
+  const remade = () => {
+    own(['read-tree', '--reset', '-u', 'HEAD']);
+    own(['checkout-index', '--all', '--force']);
+    assert.equal(readFileSync(join(dir, 'checker.mjs'), 'utf8'), forged, 'git leaves the altered file');
+    refetched();
+  };
+  writeFileSync(join(dir, 'checker.mjs'), forged);
+  own(['update-index', '--skip-worktree', 'checker.mjs']);
+  remade();
+  forgeIndex(dir, 'checker.mjs', forged);
+  remade();
 
   // Configuration and files git did not write.
   const marker = join(scratch, `MARKER-${count++}`);
+  const planted = script(join(scratch, `planted-${count++}`), 'planted', marker);
   for (const [what, change] of [
-    ['an fsmonitor command', () => own(['config', 'core.fsmonitor', script(join(scratch, `fsmonitor-${count++}`), 'fsmonitor', marker)])],
+    ['an fsmonitor command', () => own(['config', 'core.fsmonitor', planted])],
     ['a hooks path', () => own(['config', 'core.hooksPath', join(gitDir, 'hooks')])],
+    // git runs a hook its configuration defines wherever core.hooksPath points; this one would run when the index is written.
+    ['a hook defined in the configuration', () => { own(['config', 'hook.planted.command', planted]); own(['config', 'hook.planted.event', 'post-index-change']); }],
     ['a filter', () => own(['config', 'filter.planted.smudge', 'cat'])],
     ['an include', () => own(['config', 'include.path', join(scratch, 'included')])],
     ['a second core.bare', () => own(['config', '--add', 'core.bare', 'true'])],
@@ -554,7 +594,29 @@ test('a cached checkout is reused when intact, and fetched again when an object 
     change();
     assert.equal(refetched(), true, `a checkout with ${what} is fetched again`);
   }
-  assert.equal(existsSync(marker), false, 'the planted fsmonitor ran');
+  assert.equal(existsSync(marker), false, 'a planted command ran');
+  // It is live: git with the checker's own settings runs the hook the configuration defines.
+  own(['config', 'hook.planted.command', planted]);
+  own(['config', 'hook.planted.event', 'post-index-change']);
+  git(['--git-dir', gitDir, '--work-tree', dir, 'read-tree', '--reset', '-u', 'HEAD']);
+  assert.match(readFileSync(marker, 'utf8'), /^planted$/m);
+});
+
+test('a kept graph checkout is verified, and loses its index, before the checker reads it', async () => {
+  const source = origin('kept-graph', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'kept-graph', fixtureRecord(source)));
+  assert.deepEqual((await check(dir)).problems, []);
+  const kept = join(cacheDir, 'graphs', source.commit);
+  const sentinel = join(kept, '.git', 'sentinel');
+  writeFileSync(sentinel, '');
+  assert.deepEqual((await check(dir)).problems, []);
+  assert.ok(existsSync(sentinel), 'an intact checkout is reused');
+  plainGit(['config', '--file', join(kept, '.git', 'config'), 'core.hooksPath', join(kept, '.git', 'hooks')]);
+  assert.deepEqual((await check(dir)).problems, []);
+  assert.equal(existsSync(sentinel), false, 'a checkout with a hooks path is fetched again');
+  // A meaning file altered behind a forged index would be read as the commit's: its licence is not the entry's.
+  forgeIndex(kept, 'fixture.meaning.yaml', meaningFile({ license: 'MIT' }));
+  assert.deepEqual((await check(dir)).problems, [], 'the altered file was read');
 });
 
 test('a kept branch history is reused when intact, and cloned again when it is not or cannot be brought up to date', () => {
@@ -575,6 +637,7 @@ test('a kept branch history is reused when intact, and cloned again when it is n
     ['a rewritten URL', () => config(`url.file://${scratch}/elsewhere.insteadOf`, url)],
     ['another remote', () => config('remote.origin.url', `file://${scratch}/elsewhere`)],
     ['a hooks path', () => config('core.hooksPath', join(dir, 'hooks'))],
+    ['a hook defined in the configuration', () => { config('hook.planted.command', 'true'); config('hook.planted.event', 'reference-transaction'); }],
     ['a shallow file', () => writeFileSync(join(dir, 'shallow'), `${source.commit}\n`)],
     // The branch has become a directory of refs, so the fetch cannot write it.
     ['a branch that cannot be fetched', () => { plainGit(['-C', dir, 'update-ref', '-d', 'refs/heads/main']); plainGit(['-C', dir, 'update-ref', 'refs/heads/main/x', source.commit]); }],
@@ -594,6 +657,13 @@ test('a kept branch history with a forged commit does not put a side branch\'s c
   const cache = join(scratch, `history-cache-${count++}`);
   assert.equal(onBranch(url, 'main', source.sideCommit, cache), false);
   const dir = join(cache, readdirSync(cache)[0]);
+  // Another repository as the clone's remote, one whose main is the side
+  // commit: the history of main is never read from it.
+  const other = join(scratch, `other-${count++}`);
+  plainGit(['clone', '-q', work, other]);
+  plainGit(['-C', other, 'checkout', '-q', '-B', 'main', source.sideCommit]);
+  plainGit(['config', '--file', join(dir, 'config'), 'remote.origin.url', `file://${other}`]);
+  assert.equal(onBranch(url, 'main', source.sideCommit, cache), false, 'the history was read from another repository');
   // The clone is given the side commit, and under the id of main's second
   // commit a commit that also has the side commit as a parent (as loose
   // objects: git reads a pack first).
