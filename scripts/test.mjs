@@ -968,7 +968,29 @@ test('a kept graph checkout is verified, and loses its index, before the checker
   assert.deepEqual((await check(dir)).problems, [], 'the altered file was read');
 });
 
-test('a kept branch history is reused when intact, and cloned again when it is not or cannot be brought up to date', () => {
+test('a kept graph checkout with an entry that cannot be deleted is a problem of that graph, not an exception', async (t) => {
+  // File modes do not stop root, and there are none to set where there is no user id.
+  if (!process.getuid || process.getuid() === 0) return t.skip('needs a user that a directory of mode 000 stops');
+  const source = origin('locked-graph', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'locked-graph', fixtureRecord(source)));
+  assert.deepEqual((await check(dir)).problems, []);
+  const kept = join(cacheDir, 'graphs', source.commit);
+  const locked = join(kept, 'locked');
+  mkdirSync(locked);
+  writeFileSync(join(locked, 'file'), '');
+  chmodSync(locked, 0o000);
+  // Whatever happens below, the cache is left without an entry nothing can delete.
+  t.after(() => { if (existsSync(locked)) { chmodSync(locked, 0o755); rmSync(locked, { recursive: true }); } });
+  const { problems } = await check(dir);
+  assert.equal(problems.length, 1, problems.join('\n'));
+  assert.ok(problems[0].startsWith('graphs/$records/locked-graph.yaml: the cached checkout cannot be cleared: ') && problems[0].includes(locked), problems[0]);
+  chmodSync(locked, 0o755);
+  assert.deepEqual((await check(dir)).problems, [], 'once the entry can be deleted the checkout is used again');
+  assert.equal(existsSync(locked), false);
+});
+
+test('a kept branch history is reused when intact, and cloned again when it is not or cannot be brought up to date', (t) => {
+  const notes = t.mock.method(console, 'error', () => {});
   const source = origin('kept-history', { README: 'x\n' });
   const url = origins.get(source.repository);
   const cache = join(scratch, `history-cache-${count++}`);
@@ -995,6 +1017,11 @@ test('a kept branch history is reused when intact, and cloned again when it is n
     assert.equal(cloned(), true, `a clone with ${what} is cloned again`);
     assert.equal(config('--get', 'remote.origin.url'), url);
   }
+  // The last of them: git says why the fetch failed, or, when it prints
+  // nothing, the note says how git ended (git 2.54 is killed by SIGSEGV here,
+  // and a killed process has no exit status).
+  const reason = /^note: the cached \S+ is not used again \(it cannot be brought up to date: (.+)\); it is fetched anew$/.exec(notes.mock.calls.at(-1).arguments[0])?.[1];
+  assert.match(reason ?? '', /^(?:git fetch was killed by SIG[A-Z0-9]+|git fetch ended with status \d+|(?!git fetch ).+)$/, `the note was: ${notes.mock.calls.at(-1).arguments[0]}`);
 });
 
 test('a kept branch history with a forged commit does not put a side branch\'s commit on the branch', () => {
