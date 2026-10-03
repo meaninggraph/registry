@@ -10,6 +10,10 @@
 // not a commit only a fork has), has the files the entry lists, passes the meaning checker of
 // meaninggraph/core (taken at the commit of the `core` record), declares the
 // licences the entry states, and pins exactly the dependencies the entry lists.
+//
+// The fetched repositories are cached outside the registry, in a directory of
+// the user's own (defaultCacheDir in lib/registry.mjs), and a registry that
+// tracks a `.cache` directory is refused before anything is fetched.
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkRegistry } from './lib/registry.mjs';
