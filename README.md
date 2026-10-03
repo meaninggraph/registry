@@ -1,5 +1,255 @@
 # MeaningGraph registry
 
-The public list of meaning graphs: where each lives, which commit is current, and its licence.
+The public list of meaning graphs: for each one, the address people write to
+refer to it, the repository it lives in, the commit that is its current
+reviewed version, its licences, its maintainers, and the other graphs it
+depends on.
 
-Work in progress; the entry format and checks arrive in the first pull request.
+| Id | Address | Repository at commit | Kind | Status |
+|---|---|---|---|---|
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
+| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@6f1bac9](https://github.com/datatug/chinookdb/tree/6f1bac962bccadeaa3f85e19454486ad79544ad4) | dataset | draft |
+
+## This repository is the registry
+
+The registry is this Git repository, not a database service. Registering a
+graph, or moving it to a new commit, is a pull request; CI fetches the graph
+at that commit and runs the meaning checks, so a graph that does not check
+cannot be registered.
+
+Why GitHub and not Firestore as the source of truth:
+
+- **Review and history come free.** Every registration is a reviewed pull
+  request with an author, a diff and a permanent record. A database would
+  need its own write API, permissions and audit log to match that.
+- **Nothing broken gets in.** The check runs before the merge, in the same
+  place as the change. A write to a database is checked after the fact, if at
+  all.
+- **It is where the graphs are.** Graphs live in Git repositories and are
+  pinned by commit. A registry in Git uses the same words: a repository, a
+  commit, a pull request.
+- **Anyone can read, fork or mirror it** without an account or a key, and it
+  costs nothing to run.
+
+A Firestore collection comes later, only as a search index for
+meaninggraph.io: CI generates it from this repository and nobody edits it
+(see [Planned search index](#planned-search-index)). It is never the
+authority; when the two disagree, this repository is right.
+
+## It is an inGitDB database
+
+The registry is an [inGitDB](https://github.com/ingitdb/ingitdb-cli) database:
+plain YAML files in Git, with collection definitions that say which columns
+each record has. It can be read as plain files, written by pull request, and
+it is validated in two layers (see [Checks](#checks)).
+
+```
+.ingitdb/root-collections.yaml      the three collections and their directories
+graphs/.collection/definition.yaml  the columns of a graph record
+graphs/$records/<id>.yaml           one record per graph, keyed by registry id
+dependencies/$records/<graph>--<depends_on>.yaml
+maintainers/$records/<github-handle>.yaml
+index.json                          every graph in one file, generated
+scripts/                            the meaning checks and index.json writer
+```
+
+Ways to read it:
+
+- **Plain files.** Fetch `graphs/$records/<id>.yaml`, or `index.json` for
+  everything at once.
+- **The inGitDB CLI**, in a clone:
+  `ingitdb select --path . --from graphs --where 'address==meaning://github.com/datatug/chinookdb' --fields '$id,repository,commit'`
+- **Go, through [DALgo](https://github.com/dal-go/dalgo)**, with the
+  [`dalgo2ingitdb`](https://github.com/ingitdb/dalgo2ingitdb) adapter.
+
+## Format: `meaning-registry/draft-1`
+
+A draft, like the meaning-file format `meaning/draft-1` that the graphs use: it
+may change before `meaning-registry/1`.
+
+### `graphs`: one record per graph
+
+The file name is the registry id: `graphs/$records/chinook.yaml` registers
+`chinook`.
+
+| Column | Required | Meaning |
+|---|---|---|
+| (key) | yes | Registry id: lower-case letters, digits and single hyphens, at most 80 characters. |
+| `format` | yes | `meaning-registry/draft-1`. |
+| `title` | yes | A short name. |
+| `description` | yes | What the graph covers, in a few sentences. |
+| `kind` | yes | `universal` (concepts for any dataset, such as `core`) or `dataset` (the meaning of one dataset, bound to its model). |
+| `status` | yes | `draft`, `published` or `deprecated`. |
+| `address` | yes | What consumers write: `meaning://{host}/{org}/{repo}`, the `meaning://` form of `repository`. |
+| `repository` | yes | The repository's https URL on an allowed host (today only `github.com`), as `https://github.com/{org}/{repo}`: no `.git`, trailing slash, `.` or `..` segments. Two spellings that differ only in case are the same repository. |
+| `commit` | yes | Full 40-character commit id of the current reviewed version. |
+| `tag` | no | A tag that points at `commit`, when the graph has one. |
+| `meaning_files` | yes | The meaning files, as paths in the repository. `*` matches within one path segment, so `*.meaning.yaml` means every meaning file in the repository root. |
+| `meaning_licence` | yes | SPDX id of the meaning files' licence. |
+| `model_files` | no | The data model files the meaning files bind to (for example ModelSpec). |
+| `model_licence` | with `model_files` | SPDX id of the model files' licence. |
+| `maintainers` | yes | GitHub handles; each one has a `maintainers` record. |
+
+### `dependencies`: one record per graph a graph depends on
+
+Keyed `<graph>--<depends_on>`, with columns `graph`, `depends_on` (both
+registry ids) and `commit`: the commit of `depends_on` that the graph's own
+`meaning://…?ref=` references pin. A graph depends on exactly the registered
+graphs its meaning files reference.
+
+### `maintainers`: one record per maintainer
+
+Keyed by GitHub handle, with a `name`.
+
+### Paths inside a repository
+
+`meaninggraph/core` keeps its meaning files in the repository root, and its
+checks read the root only. A dataset repository has other things in its root
+(code, data, a website), so its meaning file may sit in a directory:
+Chinook's is `model/chinook.meaning.yaml`. A registry entry therefore always
+names its files: exact paths, or a `*` pattern within one directory. A
+resolver that follows an address to a repository reads the files that the
+entry names, at the commit it pins.
+
+### Addresses
+
+The address is the `meaning://` form of the repository URL:
+`https://github.com/datatug/chinookdb` is
+`meaning://github.com/datatug/chinookdb`, and a concept in it is
+`meaning://github.com/datatug/chinookdb/<concept-id>?ref=<commit>`. That is the
+form `meaninggraph/core` defines for its own concepts, the form Chinook uses to
+reference them, and the address Chinook's own checks give the repository.
+Draft 1 registers one graph per repository.
+
+### Status
+
+`draft` means the graph is usable and checked, but its format can still
+change: every graph written in `meaning/draft-1` is `draft`, including `core`
+and `chinook`. `published` is for graphs in a stable format, so consumers can
+rely on it not changing shape. `deprecated` keeps the record (old pins stay
+resolvable) but tells consumers to move on.
+
+## How to register a graph
+
+Open a pull request that adds:
+
+1. `graphs/$records/<id>.yaml` with the columns above.
+2. `dependencies/$records/<id>--<other>.yaml` for every registered graph the
+   meaning files reference, with the commit they pin.
+3. `maintainers/$records/<handle>.yaml` if a maintainer is new here.
+4. The regenerated `index.json`: `npm ci && npm run index`.
+
+Run the checks locally with `ingitdb validate` and `npm run check`; CI runs both
+on the pull request. The check runs git over https only and ignores your
+global and system git configuration (so an `insteadOf` rewrite to ssh does
+not apply) and any inherited `GIT_*` repository variables. Behind a proxy or
+a private certificate authority, set `HTTPS_PROXY` or `GIT_SSL_CAINFO`.
+
+## How to use it
+
+To resolve an address, look it up: `address` → `repository` and `commit`, then
+read the `meaning_files` at that commit. `index.json` has every graph and its
+dependencies in one file. Its `checksum` is `sha256:` and the SHA-256 of the
+`graphs` array written as compact JSON (`JSON.stringify(index.graphs)`), so a
+consumer can check that it read the whole file.
+
+## Versioning
+
+Moving a graph to a new version is a pull request that changes `commit` (and
+`tag`, if any); the checks run against the new commit. Older commits stay
+valid for anyone who pins them: a `?ref=` pin names an immutable commit, and
+the registry never rewrites a graph's history, it only says which commit is
+current.
+
+## Checks
+
+Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.yml)):
+
+1. **inGitDB** ([`ingitdb/ingitdb-action`](https://github.com/ingitdb/ingitdb-action),
+   at a pinned commit and CLI release) validates every record against its
+   collection definition: column types, required columns, the `kind`,
+   `status` and `format` values, the 40-character `commit`, no unknown
+   columns, `model_licence` when there are `model_files`, and the foreign keys
+   (`maintainers` name maintainer records; `graph` and `depends_on` name graph
+   records).
+2. **The meaning checks** (`npm run check`, [`scripts/check.mjs`](scripts/check.mjs))
+   cover what a collection definition cannot express, and everything that
+   needs the graph's repository:
+   - ids follow the record-contract rule; commits are lower-case hex;
+     licences are SPDX-shaped; paths stay inside the repository;
+   - each address is the `meaning://` form of its repository, and no address
+     or repository is registered under two ids;
+   - each dependency record is keyed `<graph>--<depends_on>`;
+   - `index.json` is what `npm run index` writes;
+   - each graph's commit can be fetched from its repository, is in the
+     history of the repository's default branch, and a `tag` (if any) points
+     at it. GitHub serves a fork's commits through the parent repository's
+     URL, so "can be fetched" alone would let a fork's commit be registered
+     under the parent's address. The same rule applies to every commit one
+     graph pins another at;
+   - every listed file exists at that commit, and every model a meaning file
+     reads is listed in `model_files`;
+   - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
+     Schema and the cross-concept rules (references resolve, `extends` joins
+     compatible kinds without a cycle, ids and values are unique, bindings
+     name real ModelSpec entities and properties). A reference to another
+     graph resolves through this registry, at the commit it pins;
+   - the licence each file declares (a meaning file's `license`, or a
+     `Licence:` / `SPDX-License-Identifier:` line at the top of a model file)
+     is the one the entry states. A file that declares none takes the
+     repository's default licence: the licence of its unsuffixed `LICENSE`
+     (or `LICENCE`, `COPYING`) file when there is one, even one whose text
+     the check does not recognise, or, without one, the one licence all its
+     LICENSE files name. When that is not a single recognised licence, the
+     file must declare its own;
+   - listed files, and the models a meaning file reads, are regular files of
+     the repository: no symbolic links, no `..`;
+   - the dependency records are exactly the registered graphs the meaning
+     files reference, at the commits they pin.
+
+The meaning checker is not copied into this repository. It is
+`scripts/lib/meaning.mjs`, with `meaning.schema.json`, of `meaninggraph/core`
+at the commit that `graphs/$records/core.yaml` registers: the check fetches
+that commit and installs its locked dependencies. That code is only ever
+taken from `https://github.com/meaninggraph/core`, and only from a commit in
+the history of its `main` branch, so a pull request cannot point CI at
+checker code that only a fork has. A pull request that moves
+`core` to a new commit therefore moves the checker with it, and is checked by
+it.
+
+`npm test` proves each check fails on a broken entry: an unknown commit, a
+missing path, a meaning file that does not fit the schema, a licence that
+differs from the files, the same graph under a second id, a wrong address, a
+dependency at the wrong commit, a missing or unused dependency, a reference to
+an unregistered graph, an unlisted model, a stale `index.json`, a graph
+commit, a pin or a checker commit that is not on the default branch, a
+checker taken from another repository, the same repository spelled with
+`.git` or in another case, a repository value shaped like a git option, a
+model path that leaves the repository, a symbolic link, an undeclared licence
+where the repository's default is ambiguous, and a tag lookalike.
+`npm run test:ingitdb` (with `INGITDB_CLI` set to the CLI) proves inGitDB
+rejects each broken constraint of the collection definitions.
+
+## Planned search index
+
+meaninggraph.io will search a Firestore collection that CI generates from
+this database after each merge to `main`. It is never edited by hand and is
+rebuilt from here when in doubt. Its records use the existing MeaningGraph
+domain record contract, filled from the entry by name:
+
+| Index field | Filled from |
+|---|---|
+| `id` | the record key (registry id); the contract's id rule is the registry's |
+| `name` | `title` |
+| `description` | `description` |
+| `sourceRepo` | `repository` |
+| `revision` | `commit` |
+| `version` | `tag`, empty when there is none |
+| `status` | `status`; the contract accepts `draft` and `published`, so a `deprecated` graph is left out of the index until the contract has a value for it |
+| `entities` | not from the entry: read from the meaning files at `commit` |
+
+## Licence
+
+Everything in this repository (the records, the collection definitions,
+`index.json`, the scripts) is [CC0-1.0](LICENSE). The graphs keep their own
+licences, which each entry states.

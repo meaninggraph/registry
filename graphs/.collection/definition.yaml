@@ -1,0 +1,86 @@
+# One record per registered meaning graph, keyed by its registry id
+# (graphs/$records/<id>.yaml). Format meaning-registry/draft-1; README.md
+# explains every column. inGitDB checks what is declared here (types,
+# required, enums, lengths, foreign keys); scripts/check.mjs checks what a
+# column definition cannot say (the id and SHA patterns, unique addresses,
+# and everything about the graph's repository at the commit).
+titles:
+  en: Meaning graphs
+
+record_file:
+  name: '{key}.yaml'
+  format: yaml
+  type: map[string]any
+
+columns:
+  format:
+    type: string
+    required: true
+    enum: [meaning-registry/draft-1]
+  title:
+    type: string
+    required: true
+    min_length: 1
+    max_length: 120
+  description:
+    type: string
+    required: true
+    min_length: 1
+  kind:
+    type: string
+    required: true
+    enum: [universal, dataset]
+  status:
+    type: string
+    required: true
+    enum: [draft, published, deprecated]
+  # address and repository carry no `format:` hint: inGitDB treats `format`
+  # as a rendering hint and does not validate it (checked with v0.68.2).
+  # scripts/check.mjs checks both: repository is an https URL without .git,
+  # address is its meaning:// form, and neither is registered twice.
+  address:
+    type: string
+    required: true
+  repository:
+    type: string
+    required: true
+  commit:
+    type: string
+    required: true
+    length: 40
+  tag:
+    type: string
+  meaning_files:
+    type: '[]string'
+    required: true
+    min_length: 1
+  meaning_licence:
+    type: string
+    required: true
+  model_files:
+    type: '[]string'
+    min_length: 1
+  model_licence:
+    type: string
+    required_when: model_files != None
+  maintainers:
+    type: '[]string'
+    required: true
+    min_length: 1
+    foreign_key: maintainers
+
+columns_order:
+  - format
+  - title
+  - description
+  - kind
+  - status
+  - address
+  - repository
+  - commit
+  - tag
+  - meaning_files
+  - meaning_licence
+  - model_files
+  - model_licence
+  - maintainers

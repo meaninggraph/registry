@@ -1,0 +1,31 @@
+# One record per graph-to-graph dependency, keyed <graph>--<depends_on>
+# (dependencies/$records/chinook--core.yaml). `commit` is the commit of
+# depends_on that the graph's own meaning:// references pin with ?ref=;
+# scripts/check.mjs reads the graph at its commit and fails when the two
+# disagree, or when the graph references a graph that has no record here.
+titles:
+  en: Dependencies between graphs
+
+record_file:
+  name: '{key}.yaml'
+  format: yaml
+  type: map[string]any
+
+columns:
+  graph:
+    type: string
+    required: true
+    foreign_key: graphs
+  depends_on:
+    type: string
+    required: true
+    foreign_key: graphs
+  commit:
+    type: string
+    required: true
+    length: 40
+
+columns_order:
+  - graph
+  - depends_on
+  - commit

@@ -1,0 +1,17 @@
+format: meaning-registry/draft-1
+title: MeaningGraph core concepts
+description: >-
+  Universal concepts that are not specific to any dataset (country, currency,
+  customer, invoice, price, revenue, date, population, per capita and more),
+  plus the meaning/draft-1 schema and format reference. Dataset graphs reuse
+  them by address and pin a commit.
+kind: universal
+status: draft
+address: meaning://github.com/meaninggraph/core
+repository: https://github.com/meaninggraph/core
+commit: cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7
+meaning_files:
+  - '*.meaning.yaml'
+meaning_licence: CC0-1.0
+maintainers:
+  - trakhimenok
