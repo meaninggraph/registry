@@ -1,7 +1,12 @@
 {
-  "index": "meaninggraph-registry",
   "sites": [
-    "sneat-co/meaninggraph",
-    "specscore/modelspec"
+    {
+      "repo": "sneat-co/meaninggraph",
+      "secret": "SITES_TRIGGER_TOKEN_SNEAT_CO"
+    },
+    {
+      "repo": "specscore/modelspec",
+      "secret": "SITES_TRIGGER_TOKEN_SPECSCORE"
+    }
   ]
 }
