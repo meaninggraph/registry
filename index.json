@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:10d335420c0fb6f80dad6454d079e760df298960081f8069b253c642ea7179da",
+  "checksum": "sha256:22a2840e06f390d65f7e4e7ef467caa5493b995c310f42cb1b6bfd1fe9fe8d23",
   "graphs": [
     {
       "id": "chinook",
@@ -11,7 +11,7 @@
       "status": "draft",
       "address": "meaning://github.com/datatug/chinookdb",
       "repository": "https://github.com/datatug/chinookdb",
-      "commit": "6f1bac962bccadeaa3f85e19454486ad79544ad4",
+      "commit": "8c9e62ed6641c0a00faa3867167d928af4c44b06",
       "meaning_files": [
         "model/chinook.meaning.yaml"
       ],
