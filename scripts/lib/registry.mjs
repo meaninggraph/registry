@@ -17,6 +17,7 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devNull, tmpdir, userInfo } from 'node:os';
 import { parse as parseYaml } from 'yaml';
+import { homepageProblem } from './urls.mjs';
 
 export const registryFormat = 'meaning-registry/draft-1';
 // The graph whose commit supplies the meaning-file schema and the checker.
@@ -150,6 +151,10 @@ export function recordProblems({ graphs, dependencies }) {
     // https://github.com/Datatug/ChinookDB is chinookdb again.
     for (const [map, value] of [[byAddress, data.address], [byRepository, data.repository]]) {
       if (typeof value === 'string') map.set(value.toLowerCase(), [...(map.get(value.toLowerCase()) ?? []), { key, file, value }]);
+    }
+    if (data.homepage !== undefined) {
+      const problem = homepageProblem(data.homepage);
+      if (problem) problems.push(`${file}: homepage: ${problem}`);
     }
     if (data.tag !== undefined && !(typeof data.tag === 'string' && tagPattern.test(data.tag))) problems.push(`${file}: tag must be a tag name (letters, digits, ".", "_", "/", "-"; not starting with "-", ".", or "/")`);
     for (const column of ['meaning_licence', 'model_licence']) {
@@ -671,6 +676,8 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
 
 // index.json: every graph with its dependencies, sorted by id, and a sha256 of
 // the graphs array as written (compact JSON) so a consumer can verify one fetch.
+// An entry carries the record's columns as written, so `homepage` is on it when
+// the record has one and absent otherwise.
 // Code-unit order, the same in every locale.
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 export function buildIndex(registry) {

@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { deflateSync } from 'node:zlib';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, intactCheckout, loadChecker, onBranch, readRegistry, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
+import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, intactCheckout, loadChecker, onBranch, readRegistry, recordProblems, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
+import { homepageProblem, maxHomepageLength, publicHttpsProblem } from './lib/urls.mjs';
 
 // The local repositories that stand in for https URLs are file:// URLs, at
 // https://example.test/fixtures/<name>; the tests allow that host.
@@ -343,6 +344,90 @@ test('a missing meaning file, a stray record file and bad paths fail', async () 
   expectProblem(problems, /^graphs\/\$records\/core\.yaml: a universal graph has no model files/);
 });
 
+test('a homepage is optional: with one it is checked and indexed, without one the entry has none', async () => {
+  const source = origin('homed', { 'fixture.meaning.yaml': meaningFile(), LICENSE: 'CC0 1.0 Universal\n' });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'homed', fixtureRecord(source, { homepage: 'https://graphs.example.com/fixture/' })));
+  assert.deepEqual((await check(dir)).problems, []);
+  const index = JSON.parse(readFileSync(join(dir, 'index.json'), 'utf8'));
+  const entry = index.graphs.find((graph) => graph.id === 'homed');
+  assert.equal(entry.homepage, 'https://graphs.example.com/fixture/');
+  assert.match(readFileSync(join(dir, 'index.json'), 'utf8'), /^ {6}"homepage": "https:\/\/graphs\.example\.com\/fixture\/",$/m);
+  // A homepage need not be on github.com; it may have a path, and the bare host is written with its slash.
+  for (const homepage of ['https://graphs.example.com/', 'https://example.com/a/b-c_d.e~f', 'https://a.b.c.example.org/x/', `https://example.com/${'a'.repeat(200 - 'https://example.com/'.length)}`]) {
+    assert.equal(homepageProblem(homepage), null, homepage);
+  }
+  // Without one, the entry has no homepage, and neither has the committed core graph.
+  const plain = registry((d) => writeRecord(d, 'graphs', 'plain', fixtureRecord(source)));
+  assert.deepEqual((await check(plain)).problems, []);
+  const plainIndex = JSON.parse(readFileSync(join(plain, 'index.json'), 'utf8'));
+  assert.equal('homepage' in plainIndex.graphs.find((graph) => graph.id === 'plain'), false);
+  assert.equal('homepage' in plainIndex.graphs.find((graph) => graph.id === 'core'), false);
+  // The checksum covers the entry, so a homepage added to a record with no new index is stale.
+  const stale = registry((d) => writeRecord(d, 'graphs', 'plain', fixtureRecord(source)));
+  writeRecord(stale, 'graphs', 'plain', fixtureRecord(source, { homepage: 'https://graphs.example.com/fixture/' }));
+  expectProblem((await check(stale)).problems, /^index\.json differs from the records/);
+});
+
+test('a homepage that is not a public https URL of at most 200 characters is refused, and never fetched', async () => {
+  const problems = (homepage) => recordProblems({ graphs: [{ key: 'x', file: 'graphs/$records/x.yaml', data: { ...readRecord(root, 'graphs', 'core'), homepage } }], dependencies: [] });
+  const refused = {
+    'http://graphs.example.com/': /must be https, not http/,
+    'ftp://graphs.example.com/': /must be https, not ftp/,
+    'javascript:alert(1)': /must be https, not javascript/,
+    '//graphs.example.com/': /is not a URL/,
+    'graphs.example.com': /is not a URL/,
+    'https://user@graphs.example.com/': /must not contain credentials/,
+    'https://user:secret@graphs.example.com/': /must not contain credentials/,
+    'https://graphs.example.com/?a=1': /must not contain a query/,
+    'https://graphs.example.com/?': /must not contain a query/,
+    'https://graphs.example.com/#top': /must not contain a fragment/,
+    'https://graphs.example.com/#': /must not contain a fragment/,
+    'https://127.0.0.1/': /is an IP address/,
+    'https://10.0.0.5/graph/': /is an IP address/,
+    'https://169.254.169.254/latest/': /is an IP address/,
+    'https://2130706433/': /is an IP address/,
+    'https://0x7f.1/': /is an IP address/,
+    'https://[::1]/': /is an IP address/,
+    'https://[::ffff:7f00:1]/': /is an IP address/,
+    'https://localhost/': /single-label name/,
+    'https://localhost:8443/': /single-label name|not written canonically/,
+    'https://app.localhost/': /\.localhost\)/,
+    'https://printer.local/': /\.local\)/,
+    'https://wiki.internal/': /\.internal\)/,
+    'https://router.home.arpa/': /\.home\.arpa\)/,
+    'https://graphs.test/': /\.test\)/,
+    'https://graphs.example/': /\.example\)/,
+    'https://graphs.example.com./': /ends with a dot/,
+    'https://graphs..example.com/': /is not written canonically|empty label/,
+    'https://Graphs.Example.com/': /is not written canonically/,
+    'https://graphs.example.com:443/': /is not written canonically/,
+    'https://graphs.example.com': /is not written canonically \(it would be https:\/\/graphs\.example\.com\/\)/,
+    'https://graphs.example.com//x': /empty path segment/,
+    'https://graphs.example.com/a/../b': /is not written canonically/,
+    'https://graphs.example.com/%61': /writes %61 for a/,
+    'https://graphs.example.com/a b': /whitespace/,
+    ' https://graphs.example.com/': /whitespace/,
+    'https://graphs.example.com/\\x': /backslash/,
+    'https://graphs.example.com/\u0000': /control characters/,
+    '': /is not a URL/,
+    '   ': /is not a URL/,
+    [`https://example.com/${'a'.repeat(200 - 'https://example.com/'.length + 1)}`]: /longer than 200 characters/,
+  };
+  for (const [homepage, pattern] of Object.entries(refused)) {
+    expectProblem(problems(homepage), new RegExp(`^graphs/\\$records/x\\.yaml: homepage: .*${pattern.source}`));
+    assert.match(homepageProblem(homepage), pattern, JSON.stringify(homepage));
+  }
+  for (const homepage of [5, true, null, ['https://graphs.example.com/'], { url: 'https://graphs.example.com/' }]) {
+    expectProblem(problems(homepage), /^graphs\/\$records\/x\.yaml: homepage: is not a URL/);
+  }
+  assert.equal(maxHomepageLength, 200);
+  assert.equal(publicHttpsProblem('https://graphs.example.com/'), null);
+  assert.deepEqual(problems(undefined), []);
+  // A refused homepage fails the whole check, and nothing is requested from the host it names.
+  const dir = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), homepage: 'http://graphs.example.com/' }));
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
+});
+
 test('index.json is sorted by code unit, whatever the locale', () => {
   const ids = ['ya', 'ia', 'a0', 'ab', 'a-b', 'aa'];
   const index = JSON.parse(buildIndex({ graphs: ids.map((key) => ({ key, data: {} })), dependencies: [] }));
@@ -420,6 +505,9 @@ test('index.json carries a checksum of its graphs array', () => {
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
   assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core']);
+  assert.equal(index.graphs[0].homepage, 'https://chinookdb.com/model/');
+  assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
+  assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
   assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
 });
 

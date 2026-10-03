@@ -80,6 +80,7 @@ The file name is the registry id: `graphs/$records/chinook.yaml` registers
 | `description` | yes | What the graph covers, in a few sentences. |
 | `kind` | yes | `universal` (concepts for any dataset, such as `core`) or `dataset` (the meaning of one dataset, bound to its model). |
 | `status` | yes | `draft`, `published` or `deprecated`. |
+| `homepage` | no | The publisher's own page for the graph, shown as **Website** on the graph's page in the catalogue. A public https URL written canonically (a bare host ends in `/`), at most 200 characters: no userinfo, query or fragment, no IP address, `localhost` or local, internal or reserved name (`.local`, `.internal`, `.test`, …). It need not be on `github.com`. The checks read its text only and **never fetch it**, so a page that is down, moved or not yet deployed does not fail them; anyone who fetches it must check the address the name resolves to. `index.json` carries it on the entry when the record has it, and leaves it out otherwise. |
 | `address` | yes | What consumers write: `meaning://{host}/{org}/{repo}`, the `meaning://` form of `repository`. |
 | `repository` | yes | The repository's https URL on an allowed host (today only `github.com`), as `https://github.com/{org}/{repo}`: no `.git`, trailing slash, `.` or `..` segments. Two spellings that differ only in case are the same repository. |
 | `commit` | yes | Full 40-character commit id of the current reviewed version. |
@@ -177,6 +178,10 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
    needs the graph's repository:
    - ids follow the record-contract rule; commits are lower-case hex;
      licences are SPDX-shaped; paths stay inside the repository;
+   - a `homepage`, when a record has one, is a public https URL of at most 200
+     characters, as the table above says. It is checked as text and not fetched
+     (the checks make no request to a host a record names; they talk to git
+     hosts on the allow-list only);
    - each address is the `meaning://` form of its repository, and no address
      or repository is registered under two ids;
    - each dependency record is keyed `<graph>--<depends_on>`;

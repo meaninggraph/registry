@@ -7,6 +7,7 @@ description: >-
   are reused from the core concepts.
 kind: dataset
 status: draft
+homepage: https://chinookdb.com/model/
 address: meaning://github.com/datatug/chinookdb
 repository: https://github.com/datatug/chinookdb
 commit: 8c9e62ed6641c0a00faa3867167d928af4c44b06
