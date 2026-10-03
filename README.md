@@ -216,13 +216,18 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      It is checked as text and **never fetched**: the checks make no request to
      the homepage's host, so a page that is down, moved or not yet deployed does
      not fail them. The only hosts the checks contact are the allow-listed git
-     hosts of each record's `repository` (and of the checker's own repository);
+     hosts (each record's `repository` and the checker's own repository) and
+     the npm registry, which `npm ci` reads for the checker's locked
+     dependencies;
    - every key of a record is a column its collection definition declares: an
      undeclared key (an `id`, a typo, a column of another collection) is
-     refused, and so is a YAML merge key (`<<`), which would hide a value from
-     these checks. An index entry is built from the declared columns only, in
-     the order of the definition's `columns_order`, and its `id` is always the
-     record's file name;
+     refused. So is a YAML merge key, in any spelling (`<<`, `"<<"`, `? <<`,
+     `!!merge <<`, or a `<<` under a `%YAML 1.1` directive), because a merged
+     value is not a value written in the record; and so is any `%YAML` directive,
+     which changes how values such as `yes` or `1:30` are read. An index entry is
+     built from the declared columns only, in the order of the definition's
+     `columns_order`, and its `id` is always the record's file name (a
+     definition may not declare an `id` or `depends` column);
    - each address is the `meaning://` form of its repository, and no address
      or repository is registered under two ids;
    - each dependency record is keyed `<graph>--<depends_on>`;

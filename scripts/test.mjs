@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -555,15 +555,41 @@ test('a record has declared columns only: an undeclared key, an id override and 
     for (const key of Object.keys(extra).filter((key) => key !== 'id')) assert.equal(key in entry && key !== 'depends', false, `${name}: ${key} is not in the entry`);
     assert.deepEqual(entry.depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
   }
-  // A YAML merge key hides a homepage from the URL check; it is read as a key named "<<" and refused.
-  const text = `${stringifyYaml(chinook).replace(/^homepage: .*\n/m, '')}<<:\n  homepage: 'javascript:alert(1)'\n`;
-  assert.ok('homepage' in parseYaml(text, { merge: true }), 'positive control: a parser that merges would give the record this homepage');
-  const dir = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), text), { rebuildIndex: false });
-  const read = readRegistry(dir);
-  assert.ok('<<' in read.graphs.find((graph) => graph.key === 'chinook').data);
-  assert.equal(read.graphs.find((graph) => graph.key === 'chinook').data.homepage, undefined);
+  // A YAML merge key hides a homepage from the URL check; it is refused in every spelling the reader
+  // would merge: plain, quoted, as a complex key, with an explicit tag, and under a %YAML 1.1 directive.
+  const base = stringifyYaml(chinook).replace(/^homepage: .*\n/m, '');
+  const merged = "{homepage: 'javascript:alert(1)'}";
+  const spellings = {
+    'a plain key': `${base}<<: ${merged}\n`,
+    'a double-quoted key': `${base}"<<": ${merged}\n`,
+    'a single-quoted key': `${base}'<<': ${merged}\n`,
+    'a complex key': `${base}? <<\n: ${merged}\n`,
+    'a !!merge key': `${base}!!merge <<: ${merged}\n`,
+    'a verbatim merge tag': `${base}!<tag:yaml.org,2002:merge> <<: ${merged}\n`,
+    'a %YAML 1.1 directive': `%YAML 1.1\n---\n${base}<<: ${merged}\n`,
+  };
+  assert.ok('homepage' in parseYaml(spellings['a plain key'], { merge: true }), 'positive control: a parser that merges would give the record this homepage');
+  assert.equal(parseYaml(spellings['a !!merge key'], { merge: false }).homepage, 'javascript:alert(1)', 'positive control: merge: false alone still merges a !!merge key');
+  assert.equal(parseYaml(spellings['a %YAML 1.1 directive'], { merge: false }).homepage, 'javascript:alert(1)', 'positive control: merge: false alone still merges under %YAML 1.1');
+  for (const [name, text] of Object.entries(spellings)) {
+    const dir = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), text), { rebuildIndex: false });
+    const problems = [...readRegistry(dir).problems, ...recordProblems(readRegistry(dir))];
+    expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: "<<" merge keys are not allowed/);
+    assert.equal(problems.filter((problem) => /merge keys are not allowed/.test(problem)).length, 1, `${name}: reported once`);
+    if (name.includes('%YAML')) expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: a %YAML directive is not allowed/);
+  }
+  const dir = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), spellings['a !!merge key']), { rebuildIndex: false });
   expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: "<<" merge keys are not allowed/);
-  assert.doesNotMatch(buildIndex(read), /javascript|<</);
+  // A %YAML directive is refused on its own: under 1.1, `title: yes` is the boolean true and `title: 1:30` the number 90.
+  for (const directive of ['%YAML 1.1\n---\n', '%YAML 1.2\n---\n']) {
+    const bare = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), `${directive}${stringifyYaml(chinook)}`), { rebuildIndex: false });
+    expectProblem(readRegistry(bare).problems, /^graphs\/\$records\/chinook\.yaml: a %YAML directive is not allowed/);
+  }
+  assert.equal(parseYaml('%YAML 1.1\n---\ntitle: yes\n').title, true, 'positive control: 1.1 reads yes as a boolean');
+  // An ordinary record, and `title: yes` without a directive, are read as written.
+  const ordinary = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...chinook, title: 'yes' }), { rebuildIndex: false });
+  assert.equal(readRegistry(ordinary).graphs.find((graph) => graph.key === 'chinook').data.title, 'yes');
+  assert.deepEqual(readRegistry(ordinary).problems, []);
   // Dependency and maintainer records are held to their collections' columns too, and a record must be a mapping.
   const other = registry((d) => {
     writeRecord(d, 'dependencies', 'chinook--core', { ...readRecord(d, 'dependencies', 'chinook--core'), extra: 1 });
@@ -574,6 +600,40 @@ test('a record has declared columns only: an undeclared key, an id override and 
   expectProblem(problems, /^dependencies\/\$records\/chinook--core\.yaml: "extra" is not a column of this collection/);
   expectProblem(problems, /^maintainers\/\$records\/trakhimenok\.yaml: "role" is not a column of this collection/);
   expectProblem(problems, /^graphs\/\$records\/core\.yaml: a record is a mapping of columns/);
+});
+
+test('a definition whose columns_order does not list exactly its columns, or that declares id or depends, is refused', () => {
+  const definition = (dir) => join(dir, 'graphs', '.collection', 'definition.yaml');
+  const edited = (change) => {
+    const dir = registry(undefined, { rebuildIndex: false });
+    const doc = parseYaml(readFileSync(definition(dir), 'utf8'));
+    change(doc);
+    writeFileSync(definition(dir), stringifyYaml(doc));
+    return readRegistry(dir);
+  };
+  const rule = /^graphs\/\.collection\/definition\.yaml: columns_order must list exactly the declared columns \(format, title, /;
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.filter((column) => column !== 'homepage'); }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = [...doc.columns_order, 'title']; }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = [...doc.columns_order, 'colour']; }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.join(','); }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.map((column) => (column === 'homepage' ? 'title' : column)); }).problems, rule);
+  assert.deepEqual(edited((doc) => { doc.columns_order = [...doc.columns_order].reverse(); }).problems, [], 'any order that lists every column is allowed, and is the order of the index');
+  // `id` and `depends` are the index entry's own: a definition may not declare them as columns.
+  for (const reserved of ['id', 'depends']) {
+    const read = edited((doc) => { doc.columns[reserved] = { type: 'string' }; doc.columns_order.push(reserved); });
+    expectProblem(read.problems, new RegExp(`^graphs/\\.collection/definition\\.yaml: "${reserved}" cannot be a column: an index entry's id is the record's file name and its depends comes from the dependency records`));
+    assert.ok(!read.columns.graphs.includes(reserved));
+  }
+  // Even so, the entry's id is the file name: a record with an `id` is refused and the index ignores it.
+  const dir = registry(undefined, { rebuildIndex: false });
+  const doc = parseYaml(readFileSync(definition(dir), 'utf8'));
+  doc.columns.id = { type: 'string' };
+  doc.columns_order.push('id');
+  writeFileSync(definition(dir), stringifyYaml(doc));
+  writeRecord(dir, 'graphs', 'chinook', { ...readRecord(dir, 'graphs', 'chinook'), id: 'evil' });
+  const read = readRegistry(dir);
+  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core']);
+  expectProblem([...read.problems, ...recordProblems(read)], /"id" is not a column of this collection/);
 });
 
 test('the order of an index entry is the definition\'s columns_order, whatever the order of the keys in the record file', () => {
@@ -597,10 +657,18 @@ test('the suite\'s git calls ignore the user\'s git configuration: a decoy globa
   const plain = join(scratch, `decoy-plain-${count++}`);
   mkdirSync(plain);
   Object.assign(process.env, { HOME: home, XDG_CONFIG_HOME: join(home, '.config') });
+  // The control runs git with the process environment minus every GIT_ variable (an inherited GIT_DIR or
+  // GIT_WORK_TREE would send it into another repository) and keeps the decoy HOME; and only inside `plain`.
+  const controlEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+  const control = (...args) => {
+    assert.ok(realpathSync(plain).startsWith(`${realpathSync(scratch)}${sep}`), 'the control runs only inside the test\'s temporary directory');
+    return execFileSync('git', ['-C', plain, ...args], { stdio: 'pipe', env: controlEnv }).toString();
+  };
   try {
     // Positive control: git with that environment and no protection does not get a commit through.
-    execFileSync('git', ['-C', plain, 'init', '-q'], { stdio: 'pipe' });
-    assert.throws(() => execFileSync('git', ['-C', plain, '-c', 'user.name=t', '-c', 'user.email=t@e', 'commit', '-q', '--allow-empty', '-m', 'x'], { stdio: 'pipe' }), 'the decoy configuration is read by an unprotected git');
+    control('init', '-q');
+    assert.equal(control('rev-parse', '--absolute-git-dir').trim(), join(realpathSync(plain), '.git'), 'the control repository is the one in the temporary directory');
+    assert.throws(() => control('-c', 'user.name=t', '-c', 'user.email=t@e', 'commit', '-q', '--allow-empty', '-m', 'x'), /gpg failed to sign the data/, 'the decoy configuration is read by an unprotected git');
     // The fixture helper commits anyway.
     const source = origin('decoy', { 'fixture.meaning.yaml': meaningFile(), LICENSE: 'CC0 1.0 Universal\n' });
     assert.match(source.commit, /^[0-9a-f]{40}$/);

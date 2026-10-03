@@ -16,7 +16,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { isAbsolute, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devNull, tmpdir, userInfo } from 'node:os';
-import { parse as parseYaml } from 'yaml';
+import { isScalar, parse as parseYaml, parseDocument, visit } from 'yaml';
 import { homepageProblem } from './urls.mjs';
 
 export const registryFormat = 'meaning-registry/draft-1';
@@ -87,10 +87,29 @@ const lastLine = (error) => String(error.stderr ?? error.message).trim().split('
 
 const recordsDir = (root, collection) => join(root, collection, '$records');
 
-// Records are read with YAML merge keys switched off, so that `<<` is an
-// ordinary key (which recordProblems refuses) and not a hidden source of
-// columns that the checks never see but inGitDB merges.
+// YAML merge keys are switched off, so a plain `<<` is an ordinary key. That
+// is not enough: the reader still merges when the key carries an explicit tag
+// (`!!merge <<:`) and when the file starts with a `%YAML 1.1` directive, which
+// also changes how scalars such as `yes` or `1:30` are read. So a record is
+// read as a document, and refused when it has any YAML directive or any key
+// whose source text is `<<`, whatever its quoting or tag (readRecord).
 const yamlOptions = { merge: false };
+
+// Parses one record file: { data, problems }. Throws when the text is not
+// YAML (an error, a duplicate key, an unresolved alias, a second document).
+export function readRecord(text, file) {
+  const doc = parseDocument(text, yamlOptions);
+  if (doc.errors.length > 0) throw doc.errors[0];
+  const problems = [];
+  if (doc.directives.yaml.explicit) problems.push(`${file}: a %YAML directive is not allowed: it changes how values and merge keys are read`);
+  let merges = 0;
+  visit(doc, { Pair(_, pair) { if (isScalar(pair.key) && pair.key.source === '<<') merges += 1; } });
+  if (merges > 0) problems.push(`${file}: "<<" merge keys are not allowed; write every column out, so that every value is checked`);
+  return { data: doc.toJS(), problems };
+}
+
+// Names an index entry sets itself, which no collection may declare as a column.
+const reservedColumns = ['id', 'depends'];
 
 // The columns a collection declares in its definition, in the order of its
 // `columns_order` (which must list exactly the keys of `columns`), or a problem
@@ -101,6 +120,8 @@ export function readColumns(root, collection) {
     const definition = parseYaml(readFileSync(join(root, file), 'utf8'), yamlOptions);
     const declared = Object.keys(definition?.columns ?? {});
     if (declared.length === 0) return { columns: [], problems: [`${file}: declares no columns`] };
+    const reserved = declared.filter((column) => reservedColumns.includes(column));
+    if (reserved.length > 0) return { columns: declared.filter((column) => !reservedColumns.includes(column)), problems: [`${file}: ${reserved.map((column) => JSON.stringify(column)).join(', ')} cannot be a column: an index entry's id is the record's file name and its depends comes from the dependency records`] };
     const order = definition.columns_order ?? declared;
     if (!Array.isArray(order) || order.length !== declared.length || !declared.every((column) => order.includes(column))) {
       return { columns: declared, problems: [`${file}: columns_order must list exactly the declared columns (${declared.join(', ')})`] };
@@ -121,9 +142,10 @@ export function readCollection(root, collection) {
   for (const name of readdirSync(dir).sort()) {
     const file = `${collection}/$records/${name}`;
     if (!name.endsWith('.yaml')) { problems.push(`${file}: a record is a <key>.yaml file; remove or rename it`); continue; }
-    let data;
-    try { data = parseYaml(readFileSync(join(dir, name), 'utf8'), yamlOptions); } catch (error) { problems.push(`${file}: not YAML: ${error.message}`); continue; }
-    records.push({ key: name.slice(0, -'.yaml'.length), file, data: data ?? {} });
+    let read;
+    try { read = readRecord(readFileSync(join(dir, name), 'utf8'), file); } catch (error) { problems.push(`${file}: not YAML: ${error.message}`); continue; }
+    problems.push(...read.problems);
+    records.push({ key: name.slice(0, -'.yaml'.length), file, data: read.data ?? {} });
   }
   return { records, problems };
 }
@@ -143,14 +165,14 @@ export function readRegistry(root) {
 }
 
 // A record is a mapping of declared columns and nothing else: no key the
-// collection does not declare (which would otherwise go unchecked), and no
-// `<<` merge key.
+// collection does not declare (which would otherwise go unchecked). A `<<` key
+// is skipped here because readRecord refuses it, in every spelling.
 function keyProblems(file, data, declared) {
   if (data === null || typeof data !== 'object' || Array.isArray(data)) return [`${file}: a record is a mapping of columns`];
   const problems = [];
   for (const key of Object.keys(data)) {
-    if (key === '<<') problems.push(`${file}: "<<" merge keys are not allowed; write every column out, so that every value is checked`);
-    else if (!declared.includes(key)) problems.push(`${file}: ${JSON.stringify(key)} is not a column of this collection (${declared.join(', ')}); the collection definition declares every column`);
+    if (key === '<<') continue; // refused when the file is read (readRecord), once, in whatever spelling
+    if (!declared.includes(key)) problems.push(`${file}: ${JSON.stringify(key)} is not a column of this collection (${declared.join(', ')}); the collection definition declares every column`);
   }
   return problems;
 }
@@ -727,7 +749,7 @@ const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 export function buildIndex(registry) {
   const graphs = registry.graphs.map(({ key, data }) => ({
     id: key,
-    ...Object.fromEntries(registry.columns.graphs.filter((column) => data[column] !== undefined).map((column) => [column, data[column]])),
+    ...Object.fromEntries(registry.columns.graphs.filter((column) => !reservedColumns.includes(column) && data[column] !== undefined).map((column) => [column, data[column]])),
     depends: registry.dependencies.filter((dep) => dep.data.graph === key).map((dep) => ({ id: dep.data.depends_on, commit: dep.data.commit })).sort(byId),
   })).sort(byId);
   const checksum = `sha256:${createHash('sha256').update(JSON.stringify(graphs)).digest('hex')}`;
