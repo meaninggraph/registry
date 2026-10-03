@@ -240,8 +240,9 @@ directory holding a repository with hooks of its own:
   nothing else (no hook path, hook command, URL rewrite, filter, include or
   other remote), no file redirects it to other objects or history, and every
   object hashes to its name (`git fsck`). A checkout must also be at its
-  commit, and its files are written from the commit again with a new index,
-  so an index that hides an altered file has no effect. A repository that
+  commit, and its files are deleted and written from the commit again with
+  a new index, so neither an index that hides an altered file nor a file
+  left in the checkout has any effect. A repository that
   fails, or a branch history that cannot be brought up to date, is deleted
   and fetched again, and the check prints a `note:` line saying why;
 - the cache is not removed with the checkout it belongs to: delete the

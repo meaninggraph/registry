@@ -509,7 +509,8 @@ test('a repository planted in the registry\'s .cache never runs: untracked it is
   assert.match(readFileSync(marker, 'utf8'), /^reference-transaction$/m);
 });
 
-test('a cached checkout is reused when intact, and fetched again when an object is forged or its configuration is not git\'s own', () => {
+test('a cached checkout is reused when intact, and fetched again when an object is forged or its configuration is not git\'s own', (t) => {
+  const notes = t.mock.method(console, 'error', () => {});
   const genuine = 'export const ok = true;\n';
   const forged = 'export const ok = false;\n';
   const source = origin('forged', { 'checker.mjs': genuine });
@@ -527,6 +528,13 @@ test('a cached checkout is reused when intact, and fetched again when an object 
   };
   assert.equal(refetched(), false, 'an intact checkout is reused');
   assert.equal(intactCheckout(dir), true);
+  // What a git that keeps its refs another way writes is git's own too.
+  for (const [key, value] of [['core.repositoryformatversion', '1'], ['extensions.refstorage', 'files'], ['extensions.objectformat', 'sha1']]) own(['config', key, value]);
+  assert.equal(refetched(), false, 'a checkout with the extensions git writes is reused');
+  assert.equal(notes.mock.callCount(), 0, 'nothing is noted while the checkout is reused');
+  // Attributes left in the work tree would decide how git writes the files.
+  writeFileSync(join(dir, '.gitattributes'), '/checker.mjs text eol=crlf\n');
+  assert.equal(refetched(), false, 'the checkout is reused, written without the attributes');
 
   // Under the id of the file's blob, other content (as loose objects: git
   // reads a pack first). git checks the file out from it without complaint.
@@ -595,6 +603,7 @@ test('a cached checkout is reused when intact, and fetched again when an object 
     assert.equal(refetched(), true, `a checkout with ${what} is fetched again`);
   }
   assert.equal(existsSync(marker), false, 'a planted command ran');
+  assert.ok(notes.mock.calls.some((call) => /^note: the cached \S+ is not used again \(its configuration sets core\.fsmonitor\); it is fetched anew$/.test(call.arguments[0])), 'a discarded checkout is noted with the reason');
   // It is live: git with the checker's own settings runs the hook the configuration defines.
   own(['config', 'hook.planted.command', planted]);
   own(['config', 'hook.planted.event', 'post-index-change']);

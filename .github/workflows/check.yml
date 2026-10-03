@@ -47,7 +47,7 @@ jobs:
       # Commits are immutable, so checkouts of the graphs (and of the checker)
       # are cached under their commit ids. Before reuse each is verified (its
       # git configuration and every object) and made exactly its commit again
-      # (tracked files rewritten, untracked and ignored files removed); the
+      # (its files deleted and written from the commit with a new index); the
       # checker's dependencies are reinstalled with npm ci every run.
       - name: Cache the graph checkouts
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -289,8 +289,13 @@ export const intactCheckout = (dir) => checkoutUnsound(dir) === null;
 // entry marked skip-worktree or assume-unchanged, or one whose recorded size
 // and times match an altered file, leaves that file as it is and reports no
 // difference. A kept checkout therefore loses its index before it is made its
-// commit again, so every file is written from the commit.
-const forgetIndex = (dir) => rmSync(join(dir, '.git', 'index'), { force: true });
+// commit again, so every file is written from the commit; and it loses its
+// files, because git reads attributes (line endings, encodings) from a
+// .gitattributes it finds in the work tree while it writes them.
+const forgetIndex = (dir) => {
+  rmSync(join(dir, '.git', 'index'), { force: true });
+  for (const name of readdirSync(dir)) if (name !== '.git') rmSync(join(dir, name), { recursive: true, force: true });
+};
 // Deletes a cached repository that is not used again, and says why (a cache
 // that never hits would otherwise go unnoticed).
 const discard = (dir, why) => {
@@ -300,9 +305,9 @@ const discard = (dir, why) => {
 
 // Fetches one commit of a repository into cacheDir/<commit>. A cached
 // checkout is reused only when it can be trusted (see `unsound`) and after it
-// has been made exactly that commit again, with a new index: tracked files
-// rewritten, every untracked and ignored file (node_modules included) removed,
-// and nothing left that differs. Used only to bootstrap the checker; graphs
+// has been made exactly that commit again, from nothing but its git directory
+// (see forgetIndex): every file written from the commit with a new index, and
+// nothing left that differs. Used only to bootstrap the checker; graphs
 // are fetched with the checker's own checkoutGit.
 export function fetchCommit(url, commit, cacheDir) {
   if (!commitPattern.test(commit)) throw new Error(`${commit} is not a full commit id`);
@@ -368,7 +373,7 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
       if (lstatSync(dir, { throwIfNoEntry: false })) {
         let why = unsound(dir, historyRules(url));
         if (why === null) {
-          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${lastLine(error)}`; }
+          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ended with status ${error.status}`}`; }
         }
         if (!current) discard(dir, why);
       }
@@ -524,7 +529,7 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
   // Only well-formed graphs and full commit ids ever reach git. The checker's
   // checkoutGit reuses cacheDir/<commit> when it is that commit. Before it
   // sees a kept checkout, one that cannot be trusted is deleted, so that it is
-  // fetched again, and one that can loses its index (see forgetIndex).
+  // fetched again, and one that can loses its index and files (see forgetIndex).
   const checkout = (graph, commit) => {
     if (!wellFormed(graph) || !commitPattern.test(commit)) return { error: `${graph.file} is not well formed, so it is not fetched` };
     const key = `${graph.data.repository}@${commit}`;
