@@ -339,6 +339,10 @@ domain record contract, filled from the entry by name:
 | `status` | `status`; the contract accepts `draft` and `published`, so a `deprecated` graph is left out of the index until the contract has a value for it |
 | `entities` | not from the entry: read from the meaning files at `commit` |
 
+## Notifying the sites
+
+A change to `index.json` on `main` notifies the sites built from it, so they redeploy.
+
 ## Licence
 
 Everything in this repository (the records, the collection definitions,

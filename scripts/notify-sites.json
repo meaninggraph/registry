@@ -1,0 +1,7 @@
+{
+  "index": "meaninggraph-registry",
+  "sites": [
+    "sneat-co/meaninggraph",
+    "specscore/modelspec"
+  ]
+}
