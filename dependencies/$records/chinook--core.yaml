@@ -1,0 +1,3 @@
+graph: chinook
+depends_on: core
+commit: 4214bc73cbfcc706c0ea9c8873eba991d9ddbb91

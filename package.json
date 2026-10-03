@@ -1,0 +1,19 @@
+{
+  "name": "meaninggraph-registry-checks",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Checks for the MeaningGraph registry. The registry is data (CC0-1.0); nothing here is published to npm.",
+  "license": "CC0-1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "index": "node scripts/build-index.mjs",
+    "test": "node --test scripts/test.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}
