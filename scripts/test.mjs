@@ -7,14 +7,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { deflateSync } from 'node:zlib';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, intactCheckout, loadChecker, onBranch, readRegistry, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
+import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, gitEnv, intactCheckout, loadChecker, onBranch, readRegistry, recordProblems, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
+import { homepageProblem, maxHomepageLength, publicHttpsProblem } from './lib/urls.mjs';
 
 // The local repositories that stand in for https URLs are file:// URLs, at
 // https://example.test/fixtures/<name>; the tests allow that host.
@@ -53,7 +54,10 @@ const origins = new Map();
 function origin(name, files, { from, side, symlinks = {}, branches = [], tags = [], repository = `https://example.test/fixtures/${name}` } = {}) {
   const dir = join(scratch, `origin-${count++}`);
   mkdirSync(dir);
-  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe' }).toString().trim();
+  // Every git call of this suite runs in gitEnv(): no GIT_ variable, and neither the user's nor the
+  // system's git configuration (GIT_CONFIG_GLOBAL=/dev/null, GIT_CONFIG_NOSYSTEM=1), so a fixture
+  // commit never meets commit.gpgsign, a hook or an alias of whoever runs the tests.
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe', env: gitEnv() }).toString().trim();
   const commitFiles = (entries, links = {}) => {
     for (const [path, text] of Object.entries(entries)) {
       mkdirSync(dirname(join(dir, path)), { recursive: true });
@@ -106,6 +110,8 @@ const fixtureRecord = (source, extra = {}) => ({
   maintainers: ['trakhimenok'],
   ...extra,
 });
+// What recordProblems needs besides the graphs: the columns the committed collection definitions declare.
+const context = { maintainers: readRegistry(root).maintainers, columns: readRegistry(root).columns };
 const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) => pattern.test(problem)), `expected a problem matching ${pattern}, got:\n${problems.join('\n') || '(none)'}`);
 
 test('the registry as committed passes every check', async () => {
@@ -343,9 +349,339 @@ test('a missing meaning file, a stray record file and bad paths fail', async () 
   expectProblem(problems, /^graphs\/\$records\/core\.yaml: a universal graph has no model files/);
 });
 
+test('a homepage is optional: with one it is checked and indexed, without one the entry has none', async () => {
+  const source = origin('homed', { 'fixture.meaning.yaml': meaningFile(), LICENSE: 'CC0 1.0 Universal\n' });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'homed', fixtureRecord(source, { homepage: 'https://graphs.example.com/fixture/' })));
+  assert.deepEqual((await check(dir)).problems, []);
+  const text = readFileSync(join(dir, 'index.json'), 'utf8');
+  const entry = JSON.parse(text).graphs.find((graph) => graph.id === 'homed');
+  assert.equal(entry.homepage, 'https://graphs.example.com/fixture/');
+  assert.equal(Object.keys(entry)[Object.keys(entry).indexOf('status') + 1], 'homepage', 'homepage sits after status, wherever the record file wrote it');
+  assert.match(text, /^ {6}"homepage": "https:\/\/graphs\.example\.com\/fixture\/",$/m);
+  // Without one, the entry has no homepage, and neither has the committed core graph.
+  const plain = registry((d) => writeRecord(d, 'graphs', 'plain', fixtureRecord(source)));
+  assert.deepEqual((await check(plain)).problems, []);
+  const plainIndex = JSON.parse(readFileSync(join(plain, 'index.json'), 'utf8'));
+  assert.equal('homepage' in plainIndex.graphs.find((graph) => graph.id === 'plain'), false);
+  assert.equal('homepage' in plainIndex.graphs.find((graph) => graph.id === 'core'), false);
+  // The checksum covers the entry, so a homepage added to a record with no new index is stale.
+  const stale = registry((d) => writeRecord(d, 'graphs', 'plain', fixtureRecord(source)));
+  writeRecord(stale, 'graphs', 'plain', fixtureRecord(source, { homepage: 'https://graphs.example.com/fixture/' }));
+  expectProblem((await check(stale)).problems, /^index\.json differs from the records/);
+});
+
+// What a homepage is allowed to be, as README.md states it for index.json.
+const legitimateHomepages = [
+  'https://chinookdb.com/model/',
+  'https://example.com/',
+  'https://graphs.example.com/fixture/',
+  'https://github.com/datatug/chinookdb/',
+  'https://datatug.github.io/chinookdb/model',
+  'https://en.wikipedia.org/wiki/Chinook_database',
+  'https://xn--mnchen-3ya.de/',
+  'https://a.b.c.example.org/x/',
+  'https://example.co.uk/a/b-c_d.e~f',
+  'https://example.com/docs/v1.2/index.html',
+  'https://sub-domain.example.com/',
+  'https://a--b.example.com/',
+  'https://1.example.com/',
+  'https://example.com/CamelCase/Path',
+  'https://www.meaninggraph.io/graphs/chinook/',
+  'https://x.io/',
+  `https://example.com/${'a'.repeat(200 - 'https://example.com/'.length)}`,
+];
+// Spellings that the first version of the check let through and that are refused now, with the reason.
+const nowRefusedHomepages = {
+  'https://en.wikipedia.org/wiki/Chinook_(database)': /character outside A-Z a-z 0-9 \. _ ~ \/ - in its path/, // parentheses are outside the path set
+  'https://example.com/it%27s': /percent escape/, // an apostrophe is written as itself or left out, and itself is refused
+  'https://example.com/a+b': /character outside/,
+  'https://example.com/a,b': /character outside/,
+  'https://example.com/a:b': /character outside/,
+  'https://example.com/a@b': /character outside/,
+};
+const refusedHomepages = {
+  // Characters that break out of an HTML attribute, in the host and in the path.
+  'https://x"onmouseover="alert(1)"y=".example.com/': /is not a host name/,
+  "https://x'onmouseover='alert(1)'y='.example.com/": /is not a host name/,
+  'https://exa`mple.com/': /is not a host name/,
+  'https://exa{mple.com/': /is not a host name/,
+  'https://exa}mple.com/': /is not a host name/,
+  'https://exa&mple.com/': /is not a host name/,
+  'https://exa!mple.com/': /is not a host name/,
+  'https://exa*mple.com/': /is not a host name/,
+  'https://exa_mple.com/': /is not a host name/,
+  "https://example.com/'onmouseover='alert(1)'y='": /character outside/,
+  'https://example.com/"onmouseover="alert(1)': /character outside|percent escape/,
+  'https://example.com/`onmouseover=`': /character outside|percent escape/,
+  'https://example.com/<script>alert(1)</script>': /character outside|percent escape/,
+  'https://example.com/a&b': /character outside/,
+  'https://example.com/a&quot;b': /character outside/,
+  'https://example.com/a|b': /character outside/,
+  'https://example.com/a[0]': /character outside/,
+  'https://example.com/a;b': /character outside/,
+  'https://example.com/a=b': /character outside/,
+  'https://example.com/a!b': /character outside/,
+  'https://example.com/a$b': /character outside/,
+  'https://example.com/a*b': /character outside/,
+  // Percent escapes: none at all, so each URL has one spelling.
+  'https://example.com/%': /percent escape/,
+  'https://example.com/%zz': /percent escape/,
+  'https://example.com/%00': /percent escape/,
+  'https://example.com/%0d%0a': /percent escape/,
+  'https://example.com/%ff': /percent escape/,
+  'https://example.com/%C3%A9': /percent escape/,
+  'https://example.com/%c3%a9': /percent escape/,
+  'https://example.com/%61': /percent escape/,
+  'https://example.com/%2e%2e/x': /percent escape/,
+  // No port at all.
+  'https://example.com:443/': /must not name a port/,
+  'https://example.com:0/': /must not name a port/,
+  'https://example.com:22/': /must not name a port/,
+  'https://example.com:6379/': /must not name a port/,
+  'https://example.com:8443/': /must not name a port/,
+  'https://example.com:/': /must not name a port/,
+  // Host shapes.
+  'https://-a.example.com/': /is not a host name/,
+  'https://a-.example.com/': /is not a host name/,
+  [`https://${'a'.repeat(64)}.example.com/`]: /is not a host name/,
+  'https://münchen.de/': /is not written canonically \(it would be https:\/\/xn--mnchen-3ya\.de\/\)/,
+  'https://Graphs.Example.com/': /is not written canonically/,
+  'https://graphs.example.com': /is not written canonically \(it would be https:\/\/graphs\.example\.com\/\)/,
+  'https://graphs.example.com./': /ends with a dot/,
+  'https://models..example.com/': /has an empty label/,
+  'https://localhost/': /single-label name/,
+  'https://localhost:8443/': /single-label name/,
+  'https://app.localhost/': /\.localhost\)/,
+  'https://printer.local/': /\.local\)/,
+  'https://wiki.internal/': /\.internal\)/,
+  'https://router.home.arpa/': /\.home\.arpa\)/,
+  'https://models.test/': /\.test\)/,
+  'https://models.example/': /\.example\)/,
+  'https://abcdefghij.onion/': /\.onion\)/,
+  // Addresses, in every spelling.
+  'https://127.0.0.1/': /is an IP address/,
+  'https://10.0.0.5/model/': /is an IP address/,
+  'https://169.254.169.254/latest/': /is an IP address/,
+  'https://2130706433/': /is an IP address/,
+  'https://0x7f.1/': /is an IP address/,
+  'https://[::1]/': /is an IP address/,
+  'https://[::ffff:7f00:1]/': /is an IP address/,
+  // Scheme, userinfo, query, fragment.
+  'http://graphs.example.com/': /must be https, not http/,
+  'ftp://graphs.example.com/': /must be https, not ftp/,
+  'javascript:alert(1)': /must be https, not javascript/,
+  'data:text/html,x': /must be https, not data/,
+  '//graphs.example.com/': /is not a URL/,
+  'graphs.example.com': /is not a URL/,
+  'https://user@graphs.example.com/': /must not contain credentials/,
+  'https://user:secret@graphs.example.com/': /must not contain credentials/,
+  'https://@graphs.example.com/': /must not contain credentials|is not written canonically/,
+  'https://graphs.example.com/?a=1': /must not contain a query/,
+  'https://graphs.example.com/?': /must not contain a query/,
+  'https://graphs.example.com/#top': /must not contain a fragment/,
+  'https://graphs.example.com/#': /must not contain a fragment/,
+  'https://github.com/org/repo#readme': /must not contain a fragment/,
+  'https://graphs.example.com/#/model': /must not contain a fragment/,
+  // Path shapes.
+  'https://graphs.example.com//x': /empty path segment/,
+  'https://graphs.example.com/a/../b': /\. or \.\. segment/,
+  'https://graphs.example.com/a/./b': /\. or \.\. segment/,
+  'https://graphs.example.com/..': /\. or \.\. segment/,
+  // Whitespace, control characters, length.
+  'https://graphs.example.com/a b': /whitespace/,
+  ' https://graphs.example.com/': /whitespace/,
+  'https://graphs.example.com/\\x': /backslash/,
+  'https://graphs.example.com/\u0000': /control characters/,
+  'https://graphs.example.com/\u00a0': /whitespace/,
+  '': /is not a URL/,
+  '   ': /is not a URL/,
+  [`https://example.com/${'a'.repeat(200 - 'https://example.com/'.length + 1)}`]: /longer than 200 characters/,
+};
+
+test('the URLs a homepage may be, and the ones it may not: legitimate ones are kept, every payload is refused with its reason', () => {
+  const problems = (homepage) => recordProblems({ graphs: [{ key: 'x', file: 'graphs/$records/x.yaml', data: { ...readRecord(root, 'graphs', 'core'), homepage } }], dependencies: [], ...context });
+  assert.equal(legitimateHomepages.length, 17);
+  for (const homepage of legitimateHomepages) {
+    assert.equal(homepageProblem(homepage), null, homepage);
+    assert.deepEqual(problems(homepage), [], homepage);
+    // Whatever is accepted is made of letters, digits and - . _ ~ / : only: nothing that needs escaping in HTML, a URL or a shell.
+    assert.match(homepage, /^[A-Za-z0-9._~/:-]+$/, homepage);
+  }
+  for (const [homepage, pattern] of Object.entries({ ...refusedHomepages, ...nowRefusedHomepages })) {
+    expectProblem(problems(homepage), new RegExp(`^graphs/\\$records/x\\.yaml: homepage: .*${pattern.source}`));
+    assert.match(homepageProblem(homepage), pattern, JSON.stringify(homepage));
+  }
+  for (const homepage of [5, 1.5, true, null, '', ['https://graphs.example.com/'], { url: 'https://graphs.example.com/' }]) {
+    expectProblem(problems(homepage), /^graphs\/\$records\/x\.yaml: homepage: is not a URL/);
+  }
+  assert.equal(maxHomepageLength, 200);
+  assert.equal(publicHttpsProblem('https://graphs.example.com/'), null);
+  assert.deepEqual(problems(undefined), []);
+  // The real thing: every character U+0000 to U+FFFF in the host and in the path, accepted or refused.
+  for (let code = 0; code <= 0xffff; code += 1) {
+    const character = String.fromCharCode(code);
+    if (homepageProblem(`https://a${character}b.example.com/`) === null) assert.match(character, /^[a-z0-9.-]$/, `host character U+${code.toString(16)} accepted`);
+    if (homepageProblem(`https://example.com/a${character}b`) === null) assert.match(character, /^[A-Za-z0-9._~/-]$/, `path character U+${code.toString(16)} accepted`);
+  }
+});
+
+test('a refused homepage fails the whole check and is never requested: git is asked for repositories only', async () => {
+  const dir = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), homepage: 'http://graphs.example.com/' }));
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('the checks must not fetch a homepage'); };
+  let result;
+  try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
+  expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(datatug\/chinookdb|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+});
+
+test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {
+  const columns = readRegistry(root).columns;
+  assert.deepEqual(columns.graphs.slice(0, 7), ['format', 'title', 'description', 'kind', 'status', 'homepage', 'address']);
+  assert.ok(!columns.graphs.includes('id') && !columns.graphs.includes('<<'));
+  const chinook = readRecord(root, 'graphs', 'chinook');
+  for (const [name, extra, pattern] of [
+    ['an undeclared key', { colour: 'blue' }, /^graphs\/\$records\/chinook\.yaml: "colour" is not a column of this collection/],
+    ['an id override', { id: 'evil' }, /^graphs\/\$records\/chinook\.yaml: "id" is not a column of this collection/],
+    ['a key that only differs in case', { Homepage: 'https://graphs.example.com/' }, /"Homepage" is not a column of this collection/],
+    ['a depends key', { depends: [] }, /"depends" is not a column of this collection/],
+  ]) {
+    const dir = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...chinook, ...extra }), { rebuildIndex: false });
+    const read = readRegistry(dir);
+    expectProblem(recordProblems(read), pattern);
+    const entry = JSON.parse(buildIndex(read)).graphs.find((graph) => graph.id === 'chinook');
+    assert.equal(entry.id, 'chinook', `${name}: the id is the file name`);
+    for (const key of Object.keys(extra).filter((key) => key !== 'id')) assert.equal(key in entry && key !== 'depends', false, `${name}: ${key} is not in the entry`);
+    assert.deepEqual(entry.depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
+  }
+  // A YAML merge key hides a homepage from the URL check; it is refused in every spelling the reader
+  // would merge: plain, quoted, as a complex key, with an explicit tag, and under a %YAML 1.1 directive.
+  const base = stringifyYaml(chinook).replace(/^homepage: .*\n/m, '');
+  const merged = "{homepage: 'javascript:alert(1)'}";
+  const spellings = {
+    'a plain key': `${base}<<: ${merged}\n`,
+    'a double-quoted key': `${base}"<<": ${merged}\n`,
+    'a single-quoted key': `${base}'<<': ${merged}\n`,
+    'a complex key': `${base}? <<\n: ${merged}\n`,
+    'a !!merge key': `${base}!!merge <<: ${merged}\n`,
+    'a verbatim merge tag': `${base}!<tag:yaml.org,2002:merge> <<: ${merged}\n`,
+    'a %YAML 1.1 directive': `%YAML 1.1\n---\n${base}<<: ${merged}\n`,
+  };
+  assert.ok('homepage' in parseYaml(spellings['a plain key'], { merge: true }), 'positive control: a parser that merges would give the record this homepage');
+  assert.equal(parseYaml(spellings['a !!merge key'], { merge: false }).homepage, 'javascript:alert(1)', 'positive control: merge: false alone still merges a !!merge key');
+  assert.equal(parseYaml(spellings['a %YAML 1.1 directive'], { merge: false }).homepage, 'javascript:alert(1)', 'positive control: merge: false alone still merges under %YAML 1.1');
+  for (const [name, text] of Object.entries(spellings)) {
+    const dir = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), text), { rebuildIndex: false });
+    const problems = [...readRegistry(dir).problems, ...recordProblems(readRegistry(dir))];
+    expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: "<<" merge keys are not allowed/);
+    assert.equal(problems.filter((problem) => /merge keys are not allowed/.test(problem)).length, 1, `${name}: reported once`);
+    if (name.includes('%YAML')) expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: a %YAML directive is not allowed/);
+  }
+  const dir = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), spellings['a !!merge key']), { rebuildIndex: false });
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: "<<" merge keys are not allowed/);
+  // A %YAML directive is refused on its own: under 1.1, `title: yes` is the boolean true and `title: 1:30` the number 90.
+  for (const directive of ['%YAML 1.1\n---\n', '%YAML 1.2\n---\n']) {
+    const bare = registry((d) => writeFileSync(record(d, 'graphs', 'chinook'), `${directive}${stringifyYaml(chinook)}`), { rebuildIndex: false });
+    expectProblem(readRegistry(bare).problems, /^graphs\/\$records\/chinook\.yaml: a %YAML directive is not allowed/);
+  }
+  assert.equal(parseYaml('%YAML 1.1\n---\ntitle: yes\n').title, true, 'positive control: 1.1 reads yes as a boolean');
+  // An ordinary record, and `title: yes` without a directive, are read as written.
+  const ordinary = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...chinook, title: 'yes' }), { rebuildIndex: false });
+  assert.equal(readRegistry(ordinary).graphs.find((graph) => graph.key === 'chinook').data.title, 'yes');
+  assert.deepEqual(readRegistry(ordinary).problems, []);
+  // Dependency and maintainer records are held to their collections' columns too, and a record must be a mapping.
+  const other = registry((d) => {
+    writeRecord(d, 'dependencies', 'chinook--core', { ...readRecord(d, 'dependencies', 'chinook--core'), extra: 1 });
+    writeFileSync(record(d, 'maintainers', 'trakhimenok'), 'name: A\nrole: admin\n');
+    writeFileSync(record(d, 'graphs', 'core'), '- a\n- b\n');
+  }, { rebuildIndex: false });
+  const problems = recordProblems(readRegistry(other));
+  expectProblem(problems, /^dependencies\/\$records\/chinook--core\.yaml: "extra" is not a column of this collection/);
+  expectProblem(problems, /^maintainers\/\$records\/trakhimenok\.yaml: "role" is not a column of this collection/);
+  expectProblem(problems, /^graphs\/\$records\/core\.yaml: a record is a mapping of columns/);
+});
+
+test('a definition whose columns_order does not list exactly its columns, or that declares id or depends, is refused', () => {
+  const definition = (dir) => join(dir, 'graphs', '.collection', 'definition.yaml');
+  const edited = (change) => {
+    const dir = registry(undefined, { rebuildIndex: false });
+    const doc = parseYaml(readFileSync(definition(dir), 'utf8'));
+    change(doc);
+    writeFileSync(definition(dir), stringifyYaml(doc));
+    return readRegistry(dir);
+  };
+  const rule = /^graphs\/\.collection\/definition\.yaml: columns_order must list exactly the declared columns \(format, title, /;
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.filter((column) => column !== 'homepage'); }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = [...doc.columns_order, 'title']; }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = [...doc.columns_order, 'colour']; }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.join(','); }).problems, rule);
+  expectProblem(edited((doc) => { doc.columns_order = doc.columns_order.map((column) => (column === 'homepage' ? 'title' : column)); }).problems, rule);
+  assert.deepEqual(edited((doc) => { doc.columns_order = [...doc.columns_order].reverse(); }).problems, [], 'any order that lists every column is allowed, and is the order of the index');
+  // `id` and `depends` are the index entry's own: a definition may not declare them as columns.
+  for (const reserved of ['id', 'depends']) {
+    const read = edited((doc) => { doc.columns[reserved] = { type: 'string' }; doc.columns_order.push(reserved); });
+    expectProblem(read.problems, new RegExp(`^graphs/\\.collection/definition\\.yaml: "${reserved}" cannot be a column: an index entry's id is the record's file name and its depends comes from the dependency records`));
+    assert.ok(!read.columns.graphs.includes(reserved));
+  }
+  // Even so, the entry's id is the file name: a record with an `id` is refused and the index ignores it.
+  const dir = registry(undefined, { rebuildIndex: false });
+  const doc = parseYaml(readFileSync(definition(dir), 'utf8'));
+  doc.columns.id = { type: 'string' };
+  doc.columns_order.push('id');
+  writeFileSync(definition(dir), stringifyYaml(doc));
+  writeRecord(dir, 'graphs', 'chinook', { ...readRecord(dir, 'graphs', 'chinook'), id: 'evil' });
+  const read = readRegistry(dir);
+  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core']);
+  expectProblem([...read.problems, ...recordProblems(read)], /"id" is not a column of this collection/);
+});
+
+test('the order of an index entry is the definition\'s columns_order, whatever the order of the keys in the record file', () => {
+  const chinook = readRecord(root, 'graphs', 'chinook');
+  const shuffled = Object.fromEntries(Object.entries(chinook).reverse());
+  assert.notDeepEqual(Object.keys(shuffled), Object.keys(chinook));
+  const first = registry((d) => writeRecord(d, 'graphs', 'chinook', chinook), { rebuildIndex: false });
+  const second = registry((d) => writeRecord(d, 'graphs', 'chinook', shuffled), { rebuildIndex: false });
+  assert.equal(buildIndex(readRegistry(second)), buildIndex(readRegistry(first)));
+  const entry = JSON.parse(buildIndex(readRegistry(second))).graphs.find((graph) => graph.id === 'chinook');
+  assert.deepEqual(Object.keys(entry), ['id', ...readRegistry(root).columns.graphs.filter((column) => column !== 'tag'), 'depends']);
+  assert.equal(buildIndex(readRegistry(first)), readFileSync(join(root, 'index.json'), 'utf8'), 'the committed index.json is what the definition order writes');
+});
+
+test('the suite\'s git calls ignore the user\'s git configuration: a decoy global config that breaks every commit changes nothing', () => {
+  const home = join(scratch, `decoy-home-${count++}`);
+  mkdirSync(home);
+  // Every commit signs with a program that always fails, as commit.gpgsign=true with no usable key does.
+  writeFileSync(join(home, '.gitconfig'), '[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /usr/bin/false\n');
+  const saved = { HOME: process.env.HOME, XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME };
+  const plain = join(scratch, `decoy-plain-${count++}`);
+  mkdirSync(plain);
+  Object.assign(process.env, { HOME: home, XDG_CONFIG_HOME: join(home, '.config') });
+  // The control runs git with the process environment minus every GIT_ variable (an inherited GIT_DIR or
+  // GIT_WORK_TREE would send it into another repository) and keeps the decoy HOME; and only inside `plain`.
+  const controlEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
+  const control = (...args) => {
+    assert.ok(realpathSync(plain).startsWith(`${realpathSync(scratch)}${sep}`), 'the control runs only inside the test\'s temporary directory');
+    return execFileSync('git', ['-C', plain, ...args], { stdio: 'pipe', env: controlEnv }).toString();
+  };
+  try {
+    // Positive control: git with that environment and no protection does not get a commit through.
+    control('init', '-q');
+    assert.equal(control('rev-parse', '--absolute-git-dir').trim(), join(realpathSync(plain), '.git'), 'the control repository is the one in the temporary directory');
+    assert.throws(() => control('-c', 'user.name=t', '-c', 'user.email=t@e', 'commit', '-q', '--allow-empty', '-m', 'x'), /gpg failed to sign the data/, 'the decoy configuration is read by an unprotected git');
+    // The fixture helper commits anyway.
+    const source = origin('decoy', { 'fixture.meaning.yaml': meaningFile(), LICENSE: 'CC0 1.0 Universal\n' });
+    assert.match(source.commit, /^[0-9a-f]{40}$/);
+    assert.equal(gitEnv().GIT_CONFIG_GLOBAL, devNull);
+    assert.equal(gitEnv().GIT_CONFIG_NOSYSTEM, '1');
+  } finally {
+    for (const [name, value] of Object.entries(saved)) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+  }
+});
+
 test('index.json is sorted by code unit, whatever the locale', () => {
   const ids = ['ya', 'ia', 'a0', 'ab', 'a-b', 'aa'];
-  const index = JSON.parse(buildIndex({ graphs: ids.map((key) => ({ key, data: {} })), dependencies: [] }));
+  const index = JSON.parse(buildIndex({ graphs: ids.map((key) => ({ key, data: {} })), dependencies: [], columns: readRegistry(root).columns }));
   assert.deepEqual(index.graphs.map((graph) => graph.id), ['a-b', 'a0', 'aa', 'ab', 'ia', 'ya']);
 });
 
@@ -420,6 +756,9 @@ test('index.json carries a checksum of its graphs array', () => {
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
   assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core']);
+  assert.equal(index.graphs[0].homepage, 'https://chinookdb.com/model/');
+  assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
+  assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
   assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
 });
 
@@ -433,7 +772,8 @@ test('a file declares its licence in its first lines or in a meaning file field'
 // The git cache. git without the two -c settings the checker passes, and
 // without the user's own configuration (which may set a hooks path of its
 // own), shows what a planted repository would have done.
-const plainGit = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1' }, ...options }).toString().trim();
+// (gitEnv() minus GIT_NO_REPLACE_OBJECTS: a positive control must honour replace refs.)
+const plainGit = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: (({ GIT_NO_REPLACE_OBJECTS, ...rest }) => rest)(gitEnv()), ...options }).toString().trim();
 const script = (path, word, marker) => { writeFileSync(path, `#!/bin/sh\necho ${word} >> '${marker}'\n`); chmodSync(path, 0o755); return path; };
 const hooks = ['reference-transaction', 'post-index-change', 'post-checkout'];
 // Hooks in the git directory `gitDir` that only record, in `marker`, that they ran.
@@ -676,14 +1016,14 @@ test('a kept branch history with a forged commit does not put a side branch\'s c
   // The clone is given the side commit, and under the id of main's second
   // commit a commit that also has the side commit as a parent (as loose
   // objects: git reads a pack first).
-  plainGit(['-C', dir, 'fetch', '-q', url, 'refs/heads/side'], { env: { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_NOSYSTEM: '1', GIT_ALLOW_PROTOCOL: 'file' } });
+  plainGit(['-C', dir, 'fetch', '-q', url, 'refs/heads/side'], { env: { ...gitEnv(), GIT_NO_REPLACE_OBJECTS: undefined, GIT_ALLOW_PROTOCOL: 'file' } });
   const packs = join(dir, 'objects', 'pack');
   const moved = join(scratch, `packs-${count++}`);
   renameSync(packs, moved);
   mkdirSync(packs);
   for (const name of readdirSync(moved).filter((file) => file.endsWith('.pack'))) plainGit(['-C', dir, 'unpack-objects', '-q'], { input: readFileSync(join(moved, name)) });
   const second = plainGit(['-C', dir, 'rev-parse', 'refs/heads/main~1']);
-  const body = execFileSync('git', ['-C', dir, 'cat-file', 'commit', second]).toString().replace(/^(parent [0-9a-f]{40}\n)/m, `$1parent ${source.sideCommit}\n`);
+  const body = execFileSync('git', ['-C', dir, 'cat-file', 'commit', second], { env: gitEnv() }).toString().replace(/^(parent [0-9a-f]{40}\n)/m, `$1parent ${source.sideCommit}\n`);
   const object = join(dir, 'objects', second.slice(0, 2), second.slice(2));
   chmodSync(object, 0o644);
   writeFileSync(object, deflateSync(Buffer.concat([Buffer.from(`commit ${Buffer.byteLength(body)}\0`), Buffer.from(body)])));
