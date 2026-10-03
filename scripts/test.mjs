@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { buildIndex, checkRegistry, declaredLicence, readRegistry } from './lib/registry.mjs';
+import { buildIndex, checkRegistry, checkerRepository, declaredLicence, fetchCommit, loadChecker, readRegistry } from './lib/registry.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const cacheDir = join(root, '.cache');
@@ -35,25 +35,42 @@ function registry(change, { rebuildIndex = true } = {}) {
   return dir;
 }
 
-// A local git repository with `files`, standing in for https://example.test/fixtures/<name>.
+// A local git repository with `files` (and, with `from`, a copy of that
+// directory without .git and node_modules) on main, standing in for
+// `repository` (default https://example.test/fixtures/<name>). With `side`,
+// those files are committed on a branch that main does not contain: the
+// stand-in for a commit that only a fork has, which GitHub still serves
+// through the parent's URL.
 const origins = new Map();
-function origin(name, files) {
+function origin(name, files, { from, side, repository = `https://example.test/fixtures/${name}` } = {}) {
   const dir = join(scratch, `origin-${count++}`);
   mkdirSync(dir);
   const git = (...args) => execFileSync('git', ['-C', dir, ...args], { stdio: 'pipe' }).toString().trim();
+  const commitFiles = (entries) => {
+    for (const [path, text] of Object.entries(entries)) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), text);
+    }
+    git('add', '.');
+    git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'files');
+    return git('rev-parse', 'HEAD');
+  };
   git('init', '-q', '-b', 'main');
-  for (const [path, text] of Object.entries(files)) {
-    mkdirSync(dirname(join(dir, path)), { recursive: true });
-    writeFileSync(join(dir, path), text);
+  if (from) cpSync(from, dir, { recursive: true, filter: (path) => !/\/(\.git|node_modules)(\/|$)/.test(path.slice(from.length)) });
+  const commit = commitFiles(files);
+  let sideCommit;
+  if (side) {
+    git('checkout', '-q', '-b', 'side');
+    sideCommit = commitFiles(side);
+    git('checkout', '-q', 'main');
   }
-  git('add', '.');
-  git('-c', 'user.name=test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'files');
-  const repository = `https://example.test/fixtures/${name}`;
   origins.set(repository, `file://${dir}`);
-  return { repository, address: `meaning://example.test/fixtures/${name}`, commit: git('rev-parse', 'HEAD') };
+  return { repository, address: `meaning://${repository.slice('https://'.length)}`, commit, sideCommit };
 }
 const urlFor = (url) => origins.get(url) ?? url;
-const check = (dir) => checkRegistry({ root: dir, urlFor, cacheDir });
+// Branch histories are fetched once for the whole run, not once per test.
+const seen = { fetched: new Set(), branches: new Map() };
+const check = (dir) => checkRegistry({ root: dir, urlFor, cacheDir, ...seen });
 
 const meaningFile = (extra = {}) => stringifyYaml({
   format: 'meaning/draft-1',
@@ -96,7 +113,7 @@ test('a path that does not exist at the commit fails', async () => {
     const chinook = readRecord(d, 'graphs', 'chinook');
     writeRecord(d, 'graphs', 'chinook', { ...chinook, model_files: [...chinook.model_files, 'model/missing.modelspec.hcl'] });
   });
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit 0c34c1a/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit 6f1bac9/);
 });
 
 test('a meaning file that does not fit the meaning/draft-1 schema fails', async () => {
@@ -139,14 +156,14 @@ test('an address that is not the meaning:// form of the repository fails', async
 });
 
 test('a dependency pinned at another commit than the files pin fails', async () => {
-  const dir = registry((d) => writeRecord(d, 'dependencies', 'chinook--core', { ...readRecord(d, 'dependencies', 'chinook--core'), commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }));
-  expectProblem((await check(dir)).problems, /^dependencies\/\$records\/chinook--core\.yaml: commit is cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7, but the meaning files of chinook pin meaning:\/\/github\.com\/meaninggraph\/core at 4214bc73cbfcc706c0ea9c8873eba991d9ddbb91/);
+  const dir = registry((d) => writeRecord(d, 'dependencies', 'chinook--core', { ...readRecord(d, 'dependencies', 'chinook--core'), commit: '4214bc73cbfcc706c0ea9c8873eba991d9ddbb91' }));
+  expectProblem((await check(dir)).problems, /^dependencies\/\$records\/chinook--core\.yaml: commit is 4214bc73cbfcc706c0ea9c8873eba991d9ddbb91, but the meaning files of chinook pin meaning:\/\/github\.com\/meaninggraph\/core at cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7/);
 });
 
 test('a dependency that the files do not declare fails, and so does one they do not use', async () => {
   const missing = registry((d) => rmSync(record(d, 'dependencies', 'chinook--core')));
-  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: the meaning files reference meaning:\/\/github\.com\/meaninggraph\/core \(pinned 4214bc7[0-9a-f]+\); add dependencies\/\$records\/chinook--core\.yaml/);
-  const unused = registry((d) => writeRecord(d, 'dependencies', 'core--chinook', { graph: 'core', depends_on: 'chinook', commit: '0c34c1a3e0616fa53810916503b3bf3c8a925895' }));
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: the meaning files reference meaning:\/\/github\.com\/meaninggraph\/core \(pinned cb97dbc[0-9a-f]+\); add dependencies\/\$records\/chinook--core\.yaml/);
+  const unused = registry((d) => writeRecord(d, 'dependencies', 'core--chinook', { graph: 'core', depends_on: 'chinook', commit: '6f1bac962bccadeaa3f85e19454486ad79544ad4' }));
   expectProblem((await check(unused)).problems, /^dependencies\/\$records\/core--chinook\.yaml: core does not reference chinook at commit cb97dbc[0-9a-f]+; remove the dependency/);
 });
 
@@ -172,6 +189,29 @@ test('the checker is only ever taken from meaninggraph/core', async () => {
   expectProblem((await check(dir)).problems, /^checker: the core record must name https:\/\/github\.com\/meaninggraph\/core, where the checker lives/);
 });
 
+test('a graph commit must be in the history of the default branch', async () => {
+  const source = origin('forked', { 'fixture.meaning.yaml': meaningFile(), LICENSE: 'CC0 1.0 Universal\n' }, { side: { 'fixture.meaning.yaml': meaningFile({ description: 'Changed on a branch main does not contain.' }) } });
+  const onMain = registry((d) => writeRecord(d, 'graphs', 'forked', fixtureRecord(source)));
+  assert.deepEqual((await check(onMain)).problems, [], 'the commit on main passes');
+  const offMain = registry((d) => writeRecord(d, 'graphs', 'forked', fixtureRecord(source, { commit: source.sideCommit })));
+  expectProblem((await check(offMain)).problems, new RegExp(`^graphs/\\$records/forked\\.yaml: commit ${source.sideCommit} is not in the history of main, the default branch of https://example\\.test/fixtures/forked \\(a commit only a fork or another branch has\\)`));
+});
+
+test('the checker runs only from a commit in the history of meaninggraph/core main', async () => {
+  // A local stand-in for meaninggraph/core: the registered core commit's files on
+  // main, and an altered checker on a side branch.
+  const core = readRecord(root, 'graphs', 'core');
+  const coreFiles = fetchCommit(core.repository, core.commit, join(cacheDir, 'checker'));
+  const local = origin('core', {}, { from: coreFiles, repository: checkerRepository, side: { 'scripts/lib/meaning.mjs': 'throw new Error("altered checker code ran");\n' } });
+  const fakeOrigins = (url) => (url === checkerRepository ? origins.get(url) : url);
+  const graphs = (commit) => [{ key: 'core', data: { ...core, commit } }];
+  const options = { root: scratch, urlFor: fakeOrigins, cacheDir: join(scratch, 'checker-cache'), historyDir: join(scratch, 'history-cache') };
+  const checker = await loadChecker({ ...options, graphs: graphs(local.commit) });
+  assert.equal(typeof checker.meaning.checkMeaning, 'function', 'the commit on main loads');
+  await assert.rejects(loadChecker({ ...options, graphs: graphs(local.sideCommit) }), new RegExp(`commit ${local.sideCommit} of the core record is not in the history of main of https://github\\.com/meaninggraph/core`));
+  origins.delete(checkerRepository);
+});
+
 test('index.json that differs from the records fails', async () => {
   const dir = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), title: 'Chinook' }), { rebuildIndex: false });
   expectProblem((await check(dir)).problems, /^index\.json differs from the records; run npm run index and commit it$/);
@@ -182,7 +222,7 @@ test('index.json carries a checksum of its graphs array', () => {
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
   assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core']);
-  assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: '4214bc73cbfcc706c0ea9c8873eba991d9ddbb91' }]);
+  assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
 });
 
 test('a file declares its licence in its first lines or in a meaning file field', () => {

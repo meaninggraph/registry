@@ -6,7 +6,8 @@
 // foreign keys). This adds the meaning checks: ids and commit ids are well
 // formed, every address is the meaning:// form of its repository and is
 // registered once, index.json matches the records, and each graph, fetched at
-// its commit, has the files the entry lists, passes the meaning checker of
+// its commit (which must be in the history of the repository's default branch,
+// not a commit only a fork has), has the files the entry lists, passes the meaning checker of
 // meaninggraph/core (taken at the commit of the `core` record), declares the
 // licences the entry states, and pins exactly the dependencies the entry lists.
 import { dirname } from 'node:path';

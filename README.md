@@ -8,7 +8,7 @@ depends on.
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
-| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@0c34c1a](https://github.com/datatug/chinookdb/tree/0c34c1a3e0616fa53810916503b3bf3c8a925895) | dataset | draft |
+| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@6f1bac9](https://github.com/datatug/chinookdb/tree/6f1bac962bccadeaa3f85e19454486ad79544ad4) | dataset | draft |
 
 ## This repository is the registry
 
@@ -178,8 +178,12 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      or repository is registered under two ids;
    - each dependency record is keyed `<graph>--<depends_on>`;
    - `index.json` is what `npm run index` writes;
-   - each graph's commit can be fetched from its repository, and a `tag`
-     points at it;
+   - each graph's commit can be fetched from its repository, is in the
+     history of the repository's default branch, and a `tag` (if any) points
+     at it. GitHub serves a fork's commits through the parent repository's
+     URL, so "can be fetched" alone would let a fork's commit be registered
+     under the parent's address. The same rule applies to every commit one
+     graph pins another at;
    - every listed file exists at that commit, and every model a meaning file
      reads is listed in `model_files`;
    - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
@@ -197,7 +201,10 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
 The meaning checker is not copied into this repository. It is
 `scripts/lib/meaning.mjs`, with `meaning.schema.json`, of `meaninggraph/core`
 at the commit that `graphs/$records/core.yaml` registers: the check fetches
-that commit and installs its locked dependencies. A pull request that moves
+that commit and installs its locked dependencies. That code is only ever
+taken from `https://github.com/meaninggraph/core`, and only from a commit in
+the history of its `main` branch, so a pull request cannot point CI at
+checker code that only a fork has. A pull request that moves
 `core` to a new commit therefore moves the checker with it, and is checked by
 it.
 
@@ -205,7 +212,9 @@ it.
 missing path, a meaning file that does not fit the schema, a licence that
 differs from the files, the same graph under a second id, a wrong address, a
 dependency at the wrong commit, a missing or unused dependency, a reference to
-an unregistered graph, an unlisted model, and a stale `index.json`.
+an unregistered graph, an unlisted model, a stale `index.json`, a graph
+commit or a checker commit that is not on the default branch, and a checker
+taken from another repository.
 
 ## Planned search index
 

@@ -21,6 +21,7 @@ export const registryFormat = 'meaning-registry/draft-1';
 // The graph whose commit supplies the meaning-file schema and the checker.
 export const checkerGraph = 'core';
 export const checkerRepository = 'https://github.com/meaninggraph/core';
+export const checkerBranch = 'main';
 
 // Same rule as the record contract the planned search index uses: lower case,
 // digits and single hyphens, at most 80 characters.
@@ -141,10 +142,51 @@ export function fetchCommit(url, commit, cacheDir) {
   return dir;
 }
 
+// The branch a repository's HEAD names (its default branch), from ls-remote.
+export function defaultBranch(url) {
+  const head = git(['ls-remote', '--symref', url, 'HEAD']);
+  const match = /^ref: refs\/heads\/(\S+)\tHEAD$/m.exec(head);
+  if (!match) throw new Error(`${url} does not name a default branch`);
+  return match[1];
+}
+
+// GitHub serves the commits of every fork through the parent's URL, so a
+// commit that can be fetched from a repository is not necessarily that
+// repository's. Only a commit in the history of the branch counts: this keeps
+// a bare, commits-only (tree:0) clone of the branch per URL in cacheDir,
+// fetches it again once per run (`fetched` remembers), and asks git whether
+// the commit is an ancestor of the branch (or the branch itself). A commit the
+// clone does not have is not in that history either.
+export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
+  const dir = join(cacheDir, createHash('sha256').update(`${url}#${branch}`).digest('hex').slice(0, 32));
+  const ref = `refs/heads/${branch}`;
+  if (!fetched.has(dir)) {
+    try {
+      if (existsSync(join(dir, 'HEAD'))) git(['-C', dir, 'fetch', '-q', '--force', url, `+${ref}:${ref}`]);
+      else {
+        rmSync(dir, { recursive: true, force: true });
+        mkdirSync(cacheDir, { recursive: true });
+        git(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, url, dir]);
+      }
+    } catch (error) {
+      throw new Error(`cannot read the history of ${branch} in ${url}: ${lastLine(error)}`);
+    }
+    fetched.add(dir);
+  }
+  try {
+    git(['-C', dir, 'merge-base', '--is-ancestor', commit, ref]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Loads scripts/lib/meaning.mjs of the `core` record's commit, installing its
-// locked dependencies (npm ci --ignore-scripts) on first use. Returns
+// locked dependencies (npm ci --ignore-scripts) on first use. The commit must
+// be in the history of meaninggraph/core's main branch: a commit that only a
+// fork has would otherwise run its own checker code in CI. Returns
 // { meaning, dir, commit }.
-export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDir = join(root, '.cache', 'checker') }) {
+export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDir = join(root, '.cache', 'checker'), historyDir = join(root, '.cache', 'history'), fetched = new Set() }) {
   const core = graphs.find((graph) => graph.key === checkerGraph);
   if (!core) throw new Error(`graphs/$records/${checkerGraph}.yaml is missing; the checker is read from that graph's commit`);
   const { repository, commit } = core.data;
@@ -152,6 +194,9 @@ export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDi
   if (repository !== checkerRepository) throw new Error(`the ${checkerGraph} record must name ${checkerRepository}, where the checker lives, not ${repository}`);
   if (!commitPattern.test(commit ?? '')) throw new Error(`the ${checkerGraph} record's commit must be a full commit id`);
   const dir = fetchCommit(urlFor(repository), commit, cacheDir);
+  if (!onBranch(urlFor(repository), checkerBranch, commit, historyDir, fetched)) {
+    throw new Error(`commit ${commit} of the ${checkerGraph} record is not in the history of ${checkerBranch} of ${checkerRepository} (a commit only a fork or another branch has); the checker is not run from it`);
+  }
   const entry = join(dir, 'scripts', 'lib', 'meaning.mjs');
   if (!existsSync(entry)) throw new Error(`${repository} at ${commit} has no scripts/lib/meaning.mjs, so it cannot check meaning files`);
   if (!existsSync(join(dir, 'node_modules'))) execFileSync('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund', '--silent'], { cwd: dir, stdio: 'pipe' });
@@ -223,7 +268,7 @@ function licenceProblems(file, dir, paths, expected, column) {
 // Fetches every graph at its commit and checks it. `urlFor` maps a repository
 // URL to the URL git fetches (tests point it at local repositories);
 // `checker` is the result of loadChecker.
-export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(root, '.cache', 'graphs') }) {
+export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(root, '.cache', 'graphs'), historyDir = join(root, '.cache', 'history'), fetched = new Set(), branches = new Map() }) {
   const { meaning } = checker;
   const schemaPath = join(checker.dir, 'meaning.schema.json');
   const problems = [];
@@ -235,6 +280,16 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
       try { checkouts.set(key, meaning.checkoutGit(urlFor(graph.data.repository), commit, { cacheDir, retries: 2 })); } catch (error) { checkouts.set(key, { error: error.message }); }
     }
     return checkouts.get(key);
+  };
+  // A graph's commit, and every commit another graph pins it at, must be in
+  // the history of its repository's default branch (see onBranch).
+  const offBranch = (graph, commit) => {
+    const url = urlFor(graph.data.repository);
+    try {
+      if (!branches.has(url)) branches.set(url, defaultBranch(url));
+      const branch = branches.get(url);
+      return onBranch(url, branch, commit, historyDir, fetched) ? null : `commit ${commit} is not in the history of ${branch}, the default branch of ${graph.data.repository} (a commit only a fork or another branch has); register a commit from ${branch}`;
+    } catch (error) { return error.message; }
   };
   // One index per graph and commit: the checker compares concepts by identity.
   const loaded = new Map();
@@ -257,6 +312,8 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
     const graph = byAddress.get(`meaning://${repo}`);
     if (!graph) return { error: `meaning://${repo} is not registered in this registry` };
     if (!ref) return { error: `meaning://${repo} needs a ?ref= pin` };
+    const off = commitPattern.test(ref) ? offBranch(graph, ref) : `?ref=${ref} must be a full commit id`;
+    if (off) return { error: `meaning://${repo}?ref=${ref}: ${off}` };
     const index = loadGraph(graph, ref);
     return index.error ? { error: `meaning://${repo}?ref=${ref} cannot be read: ${index.error}` } : index;
   };
@@ -266,6 +323,8 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
     if (!commitPattern.test(data.commit ?? '') || !addressOf(data.repository)) continue; // reported by recordProblems
     const at = checkout(graph, data.commit);
     if (at.error) { problems.push(`${file}: ${at.error}`); continue; }
+    const off = offBranch(graph, data.commit);
+    if (off) { problems.push(`${file}: ${off}`); continue; }
     if (data.tag) {
       try {
         const tagged = git(['-C', at.dir, 'ls-remote', urlFor(data.repository), `refs/tags/${data.tag}`, `refs/tags/${data.tag}^{}`]).trim().split('\n').filter(Boolean).map((line) => line.split('\t')[0]);
@@ -333,14 +392,17 @@ export function indexProblems(root, registry) {
 }
 
 // Every check: records, index.json, then each graph at its commit.
-export async function checkRegistry({ root, urlFor, cacheDir = join(root, '.cache') } = {}) {
+// `fetched` and `branches` remember, across calls, which branch histories were
+// fetched and which default branches were read; by default each call starts afresh.
+export async function checkRegistry({ root, urlFor, cacheDir = join(root, '.cache'), fetched = new Set(), branches = new Map() } = {}) {
   const registry = readRegistry(root);
   const problems = [...registry.problems, ...recordProblems(registry), ...indexProblems(root, registry)];
   let checker;
-  try { checker = await loadChecker({ root, graphs: registry.graphs, urlFor, cacheDir: join(cacheDir, 'checker') }); } catch (error) {
+  const historyDir = join(cacheDir, 'history');
+  try { checker = await loadChecker({ root, graphs: registry.graphs, urlFor, cacheDir: join(cacheDir, 'checker'), historyDir, fetched }); } catch (error) {
     problems.push(`checker: ${error.message}`);
     return { problems, graphs: registry.graphs.length };
   }
-  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs') }));
+  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs'), historyDir, fetched, branches }));
   return { problems, graphs: registry.graphs.length, checker: checker.commit };
 }

@@ -9,7 +9,7 @@ kind: dataset
 status: draft
 address: meaning://github.com/datatug/chinookdb
 repository: https://github.com/datatug/chinookdb
-commit: 0c34c1a3e0616fa53810916503b3bf3c8a925895
+commit: 6f1bac962bccadeaa3f85e19454486ad79544ad4
 meaning_files:
   - model/chinook.meaning.yaml
 meaning_licence: CC0-1.0
