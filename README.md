@@ -8,7 +8,7 @@ depends on.
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
-| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@be96bf4](https://github.com/datatug/chinookdb/tree/be96bf45fdfa13559b6627d281c1e30ce92ad38f) | dataset | draft |
+| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@8c9e62e](https://github.com/datatug/chinookdb/tree/8c9e62ed6641c0a00faa3867167d928af4c44b06) | dataset | draft |
 
 ## This repository is the registry
 
