@@ -373,7 +373,7 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
       if (lstatSync(dir, { throwIfNoEntry: false })) {
         let why = unsound(dir, historyRules(url));
         if (why === null) {
-          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ended with status ${error.status}`}`; }
+          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ${error.status === null ? `was killed by ${error.signal}` : `ended with status ${error.status}`}`}`; }
         }
         if (!current) discard(dir, why);
       }
@@ -530,17 +530,21 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
   // checkoutGit reuses cacheDir/<commit> when it is that commit. Before it
   // sees a kept checkout, one that cannot be trusted is deleted, so that it is
   // fetched again, and one that can loses its index and files (see forgetIndex).
+  // A kept checkout with an entry that cannot be deleted is an error of the
+  // graph like a failed fetch, and the checker never sees it.
   const checkout = (graph, commit) => {
     if (!wellFormed(graph) || !commitPattern.test(commit)) return { error: `${graph.file} is not well formed, so it is not fetched` };
     const key = `${graph.data.repository}@${commit}`;
     if (!checkouts.has(key)) {
       const url = urlFor(graph.data.repository);
       const kept = join(cacheDir, commit);
-      if (lstatSync(kept, { throwIfNoEntry: false })) {
-        const why = checkoutUnsound(kept);
-        if (why === null) forgetIndex(kept); else discard(kept, why);
-      }
-      try { checkouts.set(key, meaning.checkoutGit(url, commit, { cacheDir, retries: 2, run: runFor(url) })); } catch (error) { checkouts.set(key, { error: error.message }); }
+      try {
+        if (lstatSync(kept, { throwIfNoEntry: false })) {
+          const why = checkoutUnsound(kept);
+          try { if (why === null) forgetIndex(kept); else discard(kept, why); } catch (error) { throw new Error(`the cached checkout cannot be cleared: ${error.message}`); }
+        }
+        checkouts.set(key, meaning.checkoutGit(url, commit, { cacheDir, retries: 2, run: runFor(url) }));
+      } catch (error) { checkouts.set(key, { error: error.message }); }
     }
     return checkouts.get(key);
   };
