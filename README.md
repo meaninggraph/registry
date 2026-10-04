@@ -8,7 +8,8 @@ depends on.
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
-| `chinook` | `meaning://github.com/datatug/chinookdb` | [datatug/chinookdb@f0c71b9](https://github.com/datatug/chinookdb/tree/f0c71b959bd082c3ec495df5fbecb4af014d6d12) | dataset | draft |
+| `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@184f9ee](https://github.com/demo-db/chinook/tree/184f9ee22101f8f56016c7963d18a406beffa013) | dataset | draft |
+| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@8e9755a](https://github.com/demo-db/northwind/tree/8e9755ae30bb99f15601a7dd3833199f59d37035) | dataset | draft |
 
 ## This repository is the registry
 
@@ -58,7 +59,7 @@ Ways to read it:
 - **Plain files.** Fetch `graphs/$records/<id>.yaml`, or `index.json` for
   everything at once.
 - **The inGitDB CLI**, in a clone:
-  `ingitdb select --path . --from graphs --where 'address==meaning://github.com/datatug/chinookdb' --fields '$id,repository,commit'`
+  `ingitdb select --path . --from graphs --where 'address==meaning://github.com/demo-db/chinook' --fields '$id,repository,commit'`
 - **Go, through [DALgo](https://github.com/dal-go/dalgo)**, with the
   [`dalgo2ingitdb`](https://github.com/ingitdb/dalgo2ingitdb) adapter.
 
@@ -115,9 +116,9 @@ entry names, at the commit it pins.
 ### Addresses
 
 The address is the `meaning://` form of the repository URL:
-`https://github.com/datatug/chinookdb` is
-`meaning://github.com/datatug/chinookdb`, and a concept in it is
-`meaning://github.com/datatug/chinookdb/<concept-id>?ref=<commit>`. That is the
+`https://github.com/demo-db/chinook` is
+`meaning://github.com/demo-db/chinook`, and a concept in it is
+`meaning://github.com/demo-db/chinook/<concept-id>?ref=<commit>`. That is the
 form `meaninggraph/core` defines for its own concepts, the form Chinook uses to
 reference them, and the address Chinook's own checks give the repository.
 Draft 1 registers one graph per repository.

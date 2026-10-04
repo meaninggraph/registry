@@ -7,10 +7,10 @@ description: >-
   are reused from the core concepts.
 kind: dataset
 status: draft
-homepage: https://chinookdb.com/model/
-address: meaning://github.com/datatug/chinookdb
-repository: https://github.com/datatug/chinookdb
-commit: f0c71b959bd082c3ec495df5fbecb4af014d6d12
+homepage: https://chinook.demodb.dev/model/
+address: meaning://github.com/demo-db/chinook
+repository: https://github.com/demo-db/chinook
+commit: 184f9ee22101f8f56016c7963d18a406beffa013
 meaning_files:
   - model/chinook.meaning.yaml
 meaning_licence: CC0-1.0
