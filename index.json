@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:910e8eeb175a2813efc3e6ba63b3abf8579a5bf2da347d4352163a80aa75c381",
+  "checksum": "sha256:c37280bc3199827a4c9beb0fcf92afe17d06bf1e673f867d0d9e1f2550079000",
   "graphs": [
     {
       "id": "chinook",
@@ -50,6 +50,36 @@
         "trakhimenok"
       ],
       "depends": []
+    },
+    {
+      "id": "northwind",
+      "format": "meaning-registry/draft-1",
+      "title": "Northwind small-business database",
+      "description": "What the Northwind sample business database means: customers place orders for products supplied and shipped by Northwind. Concepts bind to ModelSpec entities and properties; shared concepts reuse the pinned core graph.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://northwind.demodb.dev/model/",
+      "address": "meaning://github.com/demo-db/northwind",
+      "repository": "https://github.com/demo-db/northwind",
+      "commit": "8e9755ae30bb99f15601a7dd3833199f59d37035",
+      "meaning_files": [
+        "model/northwind.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/northwind.modelspec.hcl",
+        "model/northwind.modelspec.json"
+      ],
+      "model_licence": "MIT",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7"
+        }
+      ]
     }
   ]
 }
