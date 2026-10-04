@@ -354,6 +354,12 @@ export function unsound(gitDir, { required, optional, foreign }) {
 // The same for a checkout of one commit, as fetchCommit and the checker's checkoutGit keep them.
 const checkoutUnsound = (dir) => (lstatSync(dir, { throwIfNoEntry: false })?.isDirectory() ? unsound(join(dir, '.git'), checkoutRules) : 'it is not a directory');
 export const intactCheckout = (dir) => checkoutUnsound(dir) === null;
+// Deletes what a directory holds (but for `except`) one entry at a time, so
+// that a failure names the entry of `dir` that cannot be deleted, or that
+// holds what cannot, and not `dir` itself.
+const empty = (dir, except) => {
+  for (const name of readdirSync(dir)) if (name !== except) rmSync(join(dir, name), { recursive: true, force: true });
+};
 // git trusts a checkout's index when it decides which files to rewrite: an
 // entry marked skip-worktree or assume-unchanged, or one whose recorded size
 // and times match an altered file, leaves that file as it is and reports no
@@ -363,13 +369,24 @@ export const intactCheckout = (dir) => checkoutUnsound(dir) === null;
 // .gitattributes it finds in the work tree while it writes them.
 const forgetIndex = (dir) => {
   rmSync(join(dir, '.git', 'index'), { force: true });
-  for (const name of readdirSync(dir)) if (name !== '.git') rmSync(join(dir, name), { recursive: true, force: true });
+  empty(dir, '.git');
 };
 // Deletes a cached repository that is not used again, and says why (a cache
-// that never hits would otherwise go unnoticed).
+// that never hits would otherwise go unnoticed) and what becomes of it: it is
+// fetched anew, unless it cannot be deleted.
 const discard = (dir, why) => {
-  if (lstatSync(dir, { throwIfNoEntry: false })) console.error(`note: the cached ${dir} is not used again (${why}); it is fetched anew`);
-  rmSync(dir, { recursive: true, force: true });
+  // Not followed: of a symbolic link, the link is deleted and not what it points to.
+  const kept = lstatSync(dir, { throwIfNoEntry: false });
+  if (!kept) return;
+  const note = (then) => console.error(`note: the cached ${dir} is not used again (${why}); ${then}`);
+  try {
+    if (kept.isDirectory()) empty(dir);
+    rmSync(dir, { recursive: true, force: true });
+  } catch (error) {
+    note('it cannot be deleted');
+    throw error;
+  }
+  note('it is fetched anew');
 };
 
 // Fetches one commit of a repository into cacheDir/<commit>. A cached
@@ -431,8 +448,9 @@ export function defaultBranch(url) {
 // then through that remote: a fetch by URL is not a fetch from the clone's
 // promisor, so git would look for the trees the clone never had and fail once
 // the branch has moved. A clone that cannot be trusted, or that cannot be
-// brought up to date, is deleted and cloned again.
-export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
+// brought up to date, is deleted and cloned again. `run` runs the git commands
+// of this function itself (the tests give one whose fetch ends as they choose).
+export function onBranch(url, branch, commit, cacheDir, fetched = new Set(), run = git) {
   if (!commitPattern.test(commit) || !tagPattern.test(branch)) return false;
   const dir = join(cacheDir, createHash('sha256').update(`${url}#${branch}`).digest('hex').slice(0, 32));
   const ref = `refs/heads/${branch}`;
@@ -442,13 +460,13 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
       if (lstatSync(dir, { throwIfNoEntry: false })) {
         let why = unsound(dir, historyRules(url));
         if (why === null) {
-          try { git(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ${error.status === null ? `was killed by ${error.signal}` : `ended with status ${error.status}`}`}`; }
+          try { run(['-C', dir, 'fetch', '-q', '--force', '--no-tags', '--end-of-options', 'origin', `+${ref}:${ref}`]); current = true; } catch (error) { why = `it cannot be brought up to date: ${String(error.stderr).trim() ? lastLine(error) : `git fetch ${error.status === null ? `was killed by ${error.signal}` : `ended with status ${error.status}`}`}`; }
         }
         if (!current) discard(dir, why);
       }
       if (!current) {
         mkdirSync(cacheDir, { recursive: true });
-        git(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, '--end-of-options', url, dir]);
+        run(['clone', '-q', '--bare', '--filter=tree:0', '--single-branch', '--branch', branch, '--end-of-options', url, dir]);
       }
     } catch (error) {
       throw new Error(`cannot read the history of ${branch} in ${url}: ${lastLine(error)}`);
@@ -456,7 +474,7 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set()) {
     fetched.add(dir);
   }
   try {
-    git(['-C', dir, 'merge-base', '--is-ancestor', '--end-of-options', commit, ref]);
+    run(['-C', dir, 'merge-base', '--is-ancestor', '--end-of-options', commit, ref]);
     return true;
   } catch {
     return false;
