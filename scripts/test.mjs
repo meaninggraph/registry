@@ -946,6 +946,19 @@ test('a cached checkout is reused when intact, and fetched again when an object 
   }
   assert.equal(existsSync(marker), false, 'a planted command ran');
   assert.ok(notes.mock.calls.some((call) => call.arguments[0] === `note: the cached ${dir} is not used again (its configuration sets core.fsmonitor); it is fetched anew`), 'a discarded checkout is noted with the reason');
+  // What is there in place of the checkout is deleted as it is: of a link to a directory, the link, and nothing in the directory.
+  const elsewhere = join(scratch, `elsewhere-${count++}`);
+  mkdirSync(elsewhere);
+  writeFileSync(join(elsewhere, 'file'), '');
+  for (const [what, put] of [['a link to a directory', () => symlinkSync(elsewhere, dir)], ['a file', () => writeFileSync(dir, '')]]) {
+    rmSync(dir, { recursive: true });
+    put();
+    notes.mock.resetCalls();
+    assert.equal(fetchCommit(url, source.commit, cache), dir);
+    assert.equal(readFileSync(join(dir, 'checker.mjs'), 'utf8'), genuine, `${what} in place of the checkout is fetched again`);
+    assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), [`note: the cached ${dir} is not used again (it is not a directory); it is fetched anew`]);
+    assert.deepEqual(readdirSync(elsewhere), ['file'], `${what}: what a link points to is not touched`);
+  }
   // It is live: git with the checker's own settings runs the hook the configuration defines.
   own(['config', 'hook.planted.command', planted]);
   own(['config', 'hook.planted.event', 'post-index-change']);
@@ -1046,6 +1059,7 @@ test('a kept branch history is reused when intact, and cloned again when it is n
   for (const [how, code, reason] of [
     ['is killed', 'process.kill(process.pid, "SIGKILL")', 'git fetch was killed by SIGKILL'],
     ['ends with a status and prints nothing', 'process.exit(7)', 'git fetch ended with status 7'],
+    ['ends with a status and prints only a blank line', 'console.error(""); process.exit(3)', 'git fetch ended with status 3'],
     ['prints why it failed', 'console.error("fatal: first"); console.error("fatal: the branch cannot be written"); process.exit(128)', 'fatal: the branch cannot be written'],
   ]) {
     assert.equal(cloned(fetchEnds(code)), true, `a clone whose fetch ${how} is cloned again`);

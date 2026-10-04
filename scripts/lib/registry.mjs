@@ -355,7 +355,8 @@ export function unsound(gitDir, { required, optional, foreign }) {
 const checkoutUnsound = (dir) => (lstatSync(dir, { throwIfNoEntry: false })?.isDirectory() ? unsound(join(dir, '.git'), checkoutRules) : 'it is not a directory');
 export const intactCheckout = (dir) => checkoutUnsound(dir) === null;
 // Deletes what a directory holds (but for `except`) one entry at a time, so
-// that a failure names the entry that cannot be deleted, not the directory.
+// that a failure names the entry of `dir` that cannot be deleted, or that
+// holds what cannot, and not `dir` itself.
 const empty = (dir, except) => {
   for (const name of readdirSync(dir)) if (name !== except) rmSync(join(dir, name), { recursive: true, force: true });
 };
@@ -374,6 +375,7 @@ const forgetIndex = (dir) => {
 // that never hits would otherwise go unnoticed) and what becomes of it: it is
 // fetched anew, unless it cannot be deleted.
 const discard = (dir, why) => {
+  // Not followed: of a symbolic link, the link is deleted and not what it points to.
   const kept = lstatSync(dir, { throwIfNoEntry: false });
   if (!kept) return;
   const note = (then) => console.error(`note: the cached ${dir} is not used again (${why}); ${then}`);
