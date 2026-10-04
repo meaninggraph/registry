@@ -117,7 +117,7 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 2);
+  assert.equal(graphs, 3);
 });
 
 test('an unknown commit fails', async () => {
@@ -533,7 +533,7 @@ test('a refused homepage fails the whole check and is never requested: git is as
   let result;
   try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
   expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
-  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(datatug\/chinookdb|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(datatug\/chinookdb|demo-db\/northwind|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
 });
 
 test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {
@@ -632,7 +632,7 @@ test('a definition whose columns_order does not list exactly its columns, or tha
   writeFileSync(definition(dir), stringifyYaml(doc));
   writeRecord(dir, 'graphs', 'chinook', { ...readRecord(dir, 'graphs', 'chinook'), id: 'evil' });
   const read = readRegistry(dir);
-  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core']);
+  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core', 'northwind']);
   expectProblem([...read.problems, ...recordProblems(read)], /"id" is not a column of this collection/);
 });
 
@@ -755,7 +755,7 @@ test('index.json carries a checksum of its graphs array', () => {
   const index = JSON.parse(readFileSync(join(root, 'index.json'), 'utf8'));
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
-  assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core']);
+  assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core', 'northwind']);
   assert.equal(index.graphs[0].homepage, 'https://chinookdb.com/model/');
   assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
   assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
