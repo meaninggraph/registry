@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:2e45189b0c407c1c2ea02fdf216d693c0fd8b2bf5c8fb18d24f4116be4d7272e",
+  "checksum": "sha256:a9d443be426e69732927d64ce4ad0e8510b1e408110ccf08268c7aa581499c6d",
   "graphs": [
     {
       "id": "chinook",
@@ -69,6 +69,36 @@
       "model_files": [
         "model/northwind.modelspec.hcl",
         "model/northwind.modelspec.json"
+      ],
+      "model_licence": "MIT",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
+      "id": "pubs",
+      "format": "meaning-registry/draft-1",
+      "title": "Microsoft Pubs publishing database",
+      "description": "What the classic Pubs sample database means: authors write publications, publishers manage titles and employees, and stores record sales. Concepts bind to the pinned ModelSpec model, with reusable people, organization, employee, and price concepts from the core graph.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://demodb.dev/pubs/",
+      "address": "meaning://github.com/demo-db/pubs",
+      "repository": "https://github.com/demo-db/pubs",
+      "commit": "34501946b0478b7e2ae13c15b4c57019109b5edc",
+      "meaning_files": [
+        "model/pubs.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/pubs.modelspec.hcl",
+        "model/pubs.modelspec.json"
       ],
       "model_licence": "MIT",
       "maintainers": [
