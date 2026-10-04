@@ -117,7 +117,7 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 5);
+  assert.equal(graphs, 7);
   const pubs = readRecord(root, 'graphs', 'pubs');
   assert.equal(pubs.commit, '6c06c5c7395b03ff1a02c2b1a21485add3e1b65b');
   const sakila = readRecord(root, 'graphs', 'sakila');
@@ -570,7 +570,7 @@ test('a refused homepage fails the whole check and is never requested: git is as
   let result;
   try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
   expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
-  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(chinook|northwind|pubs|sakila)|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(adventureworks|chinook|employees|northwind|pubs|sakila)|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
 });
 
 test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {
@@ -793,10 +793,12 @@ test('index.json carries a checksum of its graphs array', () => {
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
   assert.deepEqual(index.graphs.map((graph) => graph.id), readRegistry(root).graphs.map((graph) => graph.key).sort());
-  assert.equal(index.graphs[0].homepage, 'https://chinook.demodb.dev/model/');
-  assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
-  assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
-  assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97' }]);
+  const chinook = index.graphs.find((graph) => graph.id === 'chinook');
+  const core = index.graphs.find((graph) => graph.id === 'core');
+  assert.equal(chinook.homepage, 'https://chinook.demodb.dev/model/');
+  assert.deepEqual(Object.keys(chinook).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
+  assert.equal('homepage' in core, false, 'the core graph has no homepage');
+  assert.deepEqual(chinook.depends, [{ id: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97' }]);
 });
 
 test('a file declares its licence in its first lines or in a meaning file field', () => {

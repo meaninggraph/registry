@@ -1,0 +1,21 @@
+format: meaning-registry/draft-1
+title: AdventureWorks OLTP
+description: >-
+  What the AdventureWorks OLTP sample means: people, customers, employees,
+  sales and purchase orders, products, manufacturing, and inventory. Concepts
+  bind to the pinned ModelSpec; shared concepts reuse the pinned core graph.
+kind: dataset
+status: draft
+homepage: https://demodb.dev/adventureworks/
+address: meaning://github.com/demo-db/adventureworks
+repository: https://github.com/demo-db/adventureworks
+commit: cd8dcdf2079fe31480ad6d6c024b8c17cb91beea
+meaning_files:
+  - model/adventureworks.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/adventureworks.modelspec.hcl
+  - model/adventureworks.modelspec.json
+model_licence: MIT
+maintainers:
+  - trakhimenok
