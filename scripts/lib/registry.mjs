@@ -17,6 +17,7 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devNull, tmpdir, userInfo } from 'node:os';
 import { isScalar, parse as parseYaml, parseDocument, visit } from 'yaml';
+import { astDifferences, parseHcl, parseJson, toModelspecJson, validateModel } from './modelspec.mjs';
 import { homepageProblem } from './urls.mjs';
 
 export const registryFormat = 'meaning-registry/draft-1';
@@ -582,14 +583,43 @@ export function declaredLicence(path, text, doc) {
 
 // A file's licence must be the one the entry states: the licence the file
 // declares itself, or, for a ModelSpec JSON file listed with its HCL source,
-// that source's explicit SPDX declaration. ModelSpec JSON has no licence field;
-// the ModelSpec registry separately validates the JSON as the HCL twin. Other
+// that source's explicit SPDX declaration after the exact semantic twin check
+// succeeds. ModelSpec JSON has no licence field. Other
 // files with no explicit declaration use the repository's default
 // licence. The default is the licence of the unsuffixed LICENSE file when
 // there is one (even if the check does not recognise its text); with no such
 // file, the one licence all LICENSE files name. When that is not exactly one
 // recognised licence, the file must declare its licence itself.
-function licenceProblems(file, dir, paths, expected, column) {
+function modelspecTwinProblems(file, dir, paths) {
+  const problems = [];
+  const validHclTwins = new Set();
+  for (const jsonPath of paths.filter((path) => path.endsWith('.modelspec.json'))) {
+    const hclPath = `${jsonPath.slice(0, -'.json'.length)}.hcl`;
+    if (!paths.includes(hclPath)) continue;
+    let ast;
+    try { ast = parseJson(readFileSync(join(dir, jsonPath), 'utf8')); }
+    catch (error) { problems.push(`${file}: ${jsonPath} is not valid ModelSpec JSON: ${error.message}`); continue; }
+    const validation = validateModel(ast);
+    if (validation.length > 0) {
+      problems.push(`${file}: ${jsonPath} is not a valid ModelSpec JSON AST: ${validation.join('; ')}`);
+      continue;
+    }
+    try {
+      const hcl = parseHcl(readFileSync(join(dir, hclPath), 'utf8'));
+      const differences = astDifferences(toModelspecJson(hcl, ast.module), ast);
+      if (differences.length > 0) {
+        problems.push(`${file}: ${jsonPath} does not match ${hclPath}: ${differences.join('; ')}`);
+        continue;
+      }
+      validHclTwins.add(hclPath);
+    } catch (error) {
+      problems.push(`${file}: ${hclPath} cannot be converted to ModelSpec JSON: ${error.message}`);
+    }
+  }
+  return { problems, validHclTwins };
+}
+
+function licenceProblems(file, dir, paths, expected, column, { validHclTwins = new Set() } = {}) {
   const problems = [];
   const { all, main, hasMain } = repositoryLicences(dir);
   const fallback = hasMain ? main : all;
@@ -600,7 +630,7 @@ function licenceProblems(file, dir, paths, expected, column) {
     let declared = declaredLicence(path, text, doc);
     if (declared === null && column === 'model_licence' && path.endsWith('.modelspec.json')) {
       const hclTwin = `${path.slice(0, -'.json'.length)}.hcl`;
-      if (paths.includes(hclTwin)) declared = declaredLicence(hclTwin, readFileSync(join(dir, hclTwin), 'utf8'));
+      if (validHclTwins.has(hclTwin)) declared = declaredLicence(hclTwin, readFileSync(join(dir, hclTwin), 'utf8'));
     }
     if (declared !== null && declared !== expected) problems.push(`${file}: ${column} is ${expected}, but ${path} declares ${declared}`);
     if (declared !== null) continue;
@@ -732,7 +762,9 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
       problems.push(...meaning.checkMeaning({ local, resolve, schemaPath, selfRepo }).map((problem) => `${file}: ${strip(problem)}`));
     }
     problems.push(...licenceProblems(file, at.dir, meaningFiles.files, data.meaning_licence, 'meaning_licence'));
-    if (data.model_licence) problems.push(...licenceProblems(file, at.dir, modelFiles.files, data.model_licence, 'model_licence'));
+    const modelTwins = modelspecTwinProblems(file, at.dir, modelFiles.files);
+    problems.push(...modelTwins.problems);
+    if (data.model_licence) problems.push(...licenceProblems(file, at.dir, modelFiles.files, data.model_licence, 'model_licence', { validHclTwins: modelTwins.validHclTwins }));
     // Dependencies: exactly the registered graphs the files reference, at the commits they pin.
     const declared = new Map(registry.dependencies.filter((dep) => dep.data.graph === graph.key).map((dep) => [dep.data.depends_on, dep]));
     const referenced = new Set();
