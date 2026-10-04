@@ -117,7 +117,17 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 4);
+  assert.equal(graphs, 5);
+  const pubs = readRecord(root, 'graphs', 'pubs');
+  assert.equal(pubs.commit, '6c06c5c7395b03ff1a02c2b1a21485add3e1b65b');
+  const sakila = readRecord(root, 'graphs', 'sakila');
+  assert.deepEqual(
+    [sakila.address, sakila.repository, sakila.commit, sakila.meaning_licence, sakila.model_licence],
+    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', '6567d30aec1592fe0917934a8bbe74ff70b04b01', 'CC0-1.0', 'BSD-3-Clause'],
+  );
+  assert.deepEqual(readRecord(root, 'dependencies', 'sakila--core'), {
+    graph: 'sakila', depends_on: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97',
+  });
 });
 
 test('an unknown commit fails', async () => {
@@ -152,7 +162,7 @@ test('a licence that differs from the one the files declare fails', async () => 
   const { problems } = await check(dir);
   expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: meaning_licence is MIT, but model\/chinook\.meaning\.yaml declares CC0-1.0/);
   expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.hcl declares MIT/);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.json declares no licence and the repository's default licence \(its LICENSE file\) is MIT/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: model_licence is Apache-2\.0, but model\/chinook\.modelspec\.json declares MIT/);
 });
 
 test('the same graph registered under a second id fails', async () => {
@@ -324,6 +334,33 @@ test('a file without a licence takes the repository default, and must declare on
   const noDefault = origin('licence-several', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', 'LICENSE-MIT': 'MIT License\n', 'LICENSE-CC0': CC0 });
   const ambiguous = registry((d) => writeRecord(d, 'graphs', 'licence-several', fixtureRecord(noDefault, { model_files: ['m.modelspec.json'], model_licence: 'MIT' })));
   expectProblem((await check(ambiguous)).problems, /^graphs\/\$records\/licence-several\.yaml: m\.modelspec\.json declares no licence, and the repository's LICENSE files name several \((MIT, CC0-1\.0|CC0-1\.0, MIT)\); the file must declare its licence/);
+});
+
+test('a ModelSpec JSON twin inherits its explicit HCL licence', async () => {
+  const hcl = '# SPDX-License-Identifier: BSD-3-Clause\nentity "Fixture" {}\n';
+  const source = origin('modelspec-license-twin', {
+    'fixture.meaning.yaml': meaningFile(),
+    'model/fixture.modelspec.hcl': hcl,
+    'model/fixture.modelspec.json': '{}\n',
+    LICENSE: 'The MIT License (MIT)\n',
+  });
+  const modelFiles = ['model/fixture.modelspec.hcl', 'model/fixture.modelspec.json'];
+  const valid = registry((d) => writeRecord(d, 'graphs', 'modelspec-license-twin', fixtureRecord(source, { model_files: modelFiles, model_licence: 'BSD-3-Clause' })));
+  assert.deepEqual((await check(valid)).problems, []);
+  const wrong = registry((d) => writeRecord(d, 'graphs', 'modelspec-license-twin', fixtureRecord(source, { model_files: modelFiles, model_licence: 'MIT' })));
+  const problems = (await check(wrong)).problems;
+  expectProblem(problems, /^graphs\/\$records\/modelspec-license-twin\.yaml: model_licence is MIT, but model\/fixture\.modelspec\.hcl declares BSD-3-Clause/);
+  expectProblem(problems, /^graphs\/\$records\/modelspec-license-twin\.yaml: model_licence is MIT, but model\/fixture\.modelspec\.json declares BSD-3-Clause/);
+});
+
+test('CC-BY-SA-3.0 SPDX identifiers are recognized as repository defaults', async () => {
+  const source = origin('cc-by-sa-default', {
+    'fixture.meaning.yaml': meaningFile(),
+    'm.modelspec.json': '{}\n',
+    LICENSE: 'SPDX-License-Identifier: CC-BY-SA-3.0\n',
+  });
+  const dir = registry((d) => writeRecord(d, 'graphs', 'cc-by-sa-default', fixtureRecord(source, { model_files: ['m.modelspec.json'], model_licence: 'CC-BY-SA-3.0' })));
+  assert.deepEqual((await check(dir)).problems, []);
 });
 
 test('a tag must be that exact tag, not a branch whose name ends like it', async () => {
@@ -533,7 +570,7 @@ test('a refused homepage fails the whole check and is never requested: git is as
   let result;
   try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
   expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
-  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(chinook|northwind|pubs)|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(chinook|northwind|pubs|sakila)|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
 });
 
 test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {

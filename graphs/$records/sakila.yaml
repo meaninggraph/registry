@@ -1,0 +1,21 @@
+format: meaning-registry/draft-1
+title: Sakila video rental database
+description: >-
+  The meaning of the MySQL Sakila sample database: films, actors, customers,
+  rentals, payments and stores. Dataset concepts reuse pinned universal
+  concepts from the MeaningGraph core.
+kind: dataset
+status: draft
+homepage: https://sakila.demodb.dev/model/
+address: meaning://github.com/demo-db/sakila
+repository: https://github.com/demo-db/sakila
+commit: 6567d30aec1592fe0917934a8bbe74ff70b04b01
+meaning_files:
+  - model/sakila.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/sakila.modelspec.hcl
+  - model/sakila.modelspec.json
+model_licence: BSD-3-Clause
+maintainers:
+  - trakhimenok
