@@ -1,7 +1,37 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:a5ad2e06f73117056bfe95a647fc57d60ba623f8878c48f3e71a2e442f9bbae7",
+  "checksum": "sha256:ebef0b89f6998a3cd25ef7791bc2ed08b14a584d7d2dbcfa599ec42f60c0e24d",
   "graphs": [
+    {
+      "id": "adventureworks",
+      "format": "meaning-registry/draft-1",
+      "title": "AdventureWorks OLTP",
+      "description": "What the AdventureWorks OLTP sample means: people, customers, employees, sales and purchase orders, products, manufacturing, and inventory. Concepts bind to the pinned ModelSpec; shared concepts reuse the pinned core graph.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://demodb.dev/adventureworks/",
+      "address": "meaning://github.com/demo-db/adventureworks",
+      "repository": "https://github.com/demo-db/adventureworks",
+      "commit": "cd8dcdf2079fe31480ad6d6c024b8c17cb91beea",
+      "meaning_files": [
+        "model/adventureworks.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/adventureworks.modelspec.hcl",
+        "model/adventureworks.modelspec.json"
+      ],
+      "model_licence": "MIT",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
     {
       "id": "chinook",
       "format": "meaning-registry/draft-1",
@@ -50,6 +80,36 @@
         "trakhimenok"
       ],
       "depends": []
+    },
+    {
+      "id": "employees",
+      "format": "meaning-registry/draft-1",
+      "title": "Employees (browser edition)",
+      "description": "What the Employees browser edition means: selected employee identities, departments, dated assignments, title histories, and salary histories from the upstream MySQL Employees sample. Concepts bind to the pinned ModelSpec and retain the source's CC BY-SA attribution and share-alike terms.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://demodb.dev/employees/",
+      "address": "meaning://github.com/demo-db/employees",
+      "repository": "https://github.com/demo-db/employees",
+      "commit": "2455bb327aa8444ec496d36e2fe6dcacfc58dc0a",
+      "meaning_files": [
+        "model/employees.meaning.yaml"
+      ],
+      "meaning_licence": "CC-BY-SA-3.0",
+      "model_files": [
+        "model/employees.modelspec.hcl",
+        "model/employees.modelspec.json"
+      ],
+      "model_licence": "CC-BY-SA-3.0",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
     },
     {
       "id": "northwind",

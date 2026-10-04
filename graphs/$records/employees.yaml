@@ -1,0 +1,22 @@
+format: meaning-registry/draft-1
+title: Employees (browser edition)
+description: >-
+  What the Employees browser edition means: selected employee identities,
+  departments, dated assignments, title histories, and salary histories from
+  the upstream MySQL Employees sample. Concepts bind to the pinned ModelSpec
+  and retain the source's CC BY-SA attribution and share-alike terms.
+kind: dataset
+status: draft
+homepage: https://demodb.dev/employees/
+address: meaning://github.com/demo-db/employees
+repository: https://github.com/demo-db/employees
+commit: 2455bb327aa8444ec496d36e2fe6dcacfc58dc0a
+meaning_files:
+  - model/employees.meaning.yaml
+meaning_licence: CC-BY-SA-3.0
+model_files:
+  - model/employees.modelspec.hcl
+  - model/employees.modelspec.json
+model_licence: CC-BY-SA-3.0
+maintainers:
+  - trakhimenok
