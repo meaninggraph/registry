@@ -541,6 +541,7 @@ const licenceTexts = [
   ['CC0-1.0', /CC0 1\.0 Universal/],
   ['Apache-2.0', /Apache License\s+Version 2\.0/],
   ['CC-BY-4.0', /Attribution 4\.0 International/],
+  ['CC-BY-SA-3.0', /SPDX-License-Identifier:\s*CC-BY-SA-3\.0|Attribution-ShareAlike 3\.0 International/],
   ['BSD-3-Clause', /BSD 3-Clause/],
 ];
 
@@ -580,7 +581,10 @@ export function declaredLicence(path, text, doc) {
 }
 
 // A file's licence must be the one the entry states: the licence the file
-// declares itself, or, when it declares none, the repository's default
+// declares itself, or, for a ModelSpec JSON file listed with its HCL source,
+// that source's explicit SPDX declaration. ModelSpec JSON has no licence field;
+// the ModelSpec registry separately validates the JSON as the HCL twin. Other
+// files with no explicit declaration use the repository's default
 // licence. The default is the licence of the unsuffixed LICENSE file when
 // there is one (even if the check does not recognise its text); with no such
 // file, the one licence all LICENSE files name. When that is not exactly one
@@ -593,7 +597,11 @@ function licenceProblems(file, dir, paths, expected, column) {
     const text = readFileSync(join(dir, path), 'utf8');
     let doc;
     if (path.endsWith('.meaning.yaml')) { try { doc = parseYaml(text); } catch { doc = null; } }
-    const declared = declaredLicence(path, text, doc);
+    let declared = declaredLicence(path, text, doc);
+    if (declared === null && column === 'model_licence' && path.endsWith('.modelspec.json')) {
+      const hclTwin = `${path.slice(0, -'.json'.length)}.hcl`;
+      if (paths.includes(hclTwin)) declared = declaredLicence(hclTwin, readFileSync(join(dir, hclTwin), 'utf8'));
+    }
     if (declared !== null && declared !== expected) problems.push(`${file}: ${column} is ${expected}, but ${path} declares ${declared}`);
     if (declared !== null) continue;
     const licenceFiles = hasMain ? 'LICENSE file names' : 'LICENSE files name';

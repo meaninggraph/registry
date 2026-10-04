@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:9fbe743aa39c8b63a16582d3b5b8e1797ae1845f34890aefef446c868b66629b",
+  "checksum": "sha256:a5ad2e06f73117056bfe95a647fc57d60ba623f8878c48f3e71a2e442f9bbae7",
   "graphs": [
     {
       "id": "chinook",
@@ -121,7 +121,7 @@
       "homepage": "https://sakila.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/sakila",
       "repository": "https://github.com/demo-db/sakila",
-      "commit": "0cb13fd76b2ce590f68efa99a6fbf7effcf6e4ce",
+      "commit": "6567d30aec1592fe0917934a8bbe74ff70b04b01",
       "meaning_files": [
         "model/sakila.meaning.yaml"
       ],
