@@ -9,7 +9,7 @@ status: draft
 homepage: https://northwind.demodb.dev/model/
 address: meaning://github.com/demo-db/northwind
 repository: https://github.com/demo-db/northwind
-commit: f5855699eafaba6f09b7f4897abdb2a304698b67
+commit: e74726515c3833620b54b7a50d1d273276dd23c1
 meaning_files:
   - model/northwind.meaning.yaml
 meaning_licence: CC0-1.0
