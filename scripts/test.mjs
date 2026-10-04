@@ -775,6 +775,8 @@ test('a file declares its licence in its first lines or in a meaning file field'
 // (gitEnv() minus GIT_NO_REPLACE_OBJECTS: a positive control must honour replace refs.)
 const plainGit = (args, options = {}) => execFileSync('git', args, { stdio: 'pipe', env: (({ GIT_NO_REPLACE_OBJECTS, ...rest }) => rest)(gitEnv()), ...options }).toString().trim();
 const script = (path, word, marker) => { writeFileSync(path, `#!/bin/sh\necho ${word} >> '${marker}'\n`); chmodSync(path, 0o755); return path; };
+// A script as a command in git's configuration: git runs that through the shell, and the temporary directory may have a space in its path.
+const quoted = (path) => `'${path}'`;
 const hooks = ['reference-transaction', 'post-index-change', 'post-checkout'];
 // Hooks in the git directory `gitDir` that only record, in `marker`, that they ran.
 const plantHooks = (gitDir, marker) => {
@@ -807,7 +809,7 @@ test('git runs no hook from a hooks directory and no fsmonitor of a repository i
   const dir = fileURLToPath(origins.get(source.repository));
   const marker = join(scratch, `MARKER-${count++}`);
   plantHooks(join(dir, '.git'), marker);
-  plainGit(['-C', dir, 'config', 'core.fsmonitor', script(join(scratch, `fsmonitor-${count++}`), 'fsmonitor', marker)]);
+  plainGit(['-C', dir, 'config', 'core.fsmonitor', quoted(script(join(scratch, `fsmonitor-${count++}`), 'fsmonitor', marker))]);
   const commands = [['status'], ['update-ref', 'refs/heads/planted', 'HEAD'], ['read-tree', '--reset', '-u', 'HEAD'], ['checkout', '-q', '-B', 'other']];
   for (const args of commands) git(['-C', dir, ...args]);
   assert.equal(existsSync(marker), false, 'a hook or the fsmonitor ran');
@@ -926,7 +928,7 @@ test('a cached checkout is reused when intact, and fetched again when an object 
 
   // Configuration and files git did not write.
   const marker = join(scratch, `MARKER-${count++}`);
-  const planted = script(join(scratch, `planted-${count++}`), 'planted', marker);
+  const planted = quoted(script(join(scratch, `planted-${count++}`), 'planted', marker));
   for (const [what, change] of [
     ['an fsmonitor command', () => own(['config', 'core.fsmonitor', planted])],
     ['a hooks path', () => own(['config', 'core.hooksPath', join(gitDir, 'hooks')])],
@@ -943,7 +945,7 @@ test('a cached checkout is reused when intact, and fetched again when an object 
     assert.equal(refetched(), true, `a checkout with ${what} is fetched again`);
   }
   assert.equal(existsSync(marker), false, 'a planted command ran');
-  assert.ok(notes.mock.calls.some((call) => /^note: the cached \S+ is not used again \(its configuration sets core\.fsmonitor\); it is fetched anew$/.test(call.arguments[0])), 'a discarded checkout is noted with the reason');
+  assert.ok(notes.mock.calls.some((call) => call.arguments[0] === `note: the cached ${dir} is not used again (its configuration sets core.fsmonitor); it is fetched anew`), 'a discarded checkout is noted with the reason');
   // It is live: git with the checker's own settings runs the hook the configuration defines.
   own(['config', 'hook.planted.command', planted]);
   own(['config', 'hook.planted.event', 'post-index-change']);
@@ -971,22 +973,36 @@ test('a kept graph checkout is verified, and loses its index, before the checker
 test('a kept graph checkout with an entry that cannot be deleted is a problem of that graph, not an exception', async (t) => {
   // File modes do not stop root, and there are none to set where there is no user id.
   if (!process.getuid || process.getuid() === 0) return t.skip('needs a user that a directory of mode 000 stops');
+  const notes = t.mock.method(console, 'error', () => {});
   const source = origin('locked-graph', { 'fixture.meaning.yaml': meaningFile(), LICENSE: CC0 });
   const dir = registry((d) => writeRecord(d, 'graphs', 'locked-graph', fixtureRecord(source)));
   assert.deepEqual((await check(dir)).problems, []);
   const kept = join(cacheDir, 'graphs', source.commit);
   const locked = join(kept, 'locked');
-  mkdirSync(locked);
-  writeFileSync(join(locked, 'file'), '');
-  chmodSync(locked, 0o000);
   // Whatever happens below, the cache is left without an entry nothing can delete.
   t.after(() => { if (existsSync(locked)) { chmodSync(locked, 0o755); rmSync(locked, { recursive: true }); } });
-  const { problems } = await check(dir);
-  assert.equal(problems.length, 1, problems.join('\n'));
-  assert.ok(problems[0].startsWith('graphs/$records/locked-graph.yaml: the cached checkout cannot be cleared: ') && problems[0].includes(locked), problems[0]);
-  chmodSync(locked, 0o755);
-  assert.deepEqual((await check(dir)).problems, [], 'once the entry can be deleted the checkout is used again');
-  assert.equal(existsSync(locked), false);
+  // A checkout that is reused loses its files. One that is not (here, its
+  // configuration has a key git did not write) is deleted whole.
+  for (const reused of [true, false]) {
+    const what = reused ? 'a checkout that is reused' : 'a checkout that is not used again';
+    if (!reused) plainGit(['config', '--file', join(kept, '.git', 'config'), 'core.hooksPath', 'x']);
+    mkdirSync(locked);
+    writeFileSync(join(locked, 'file'), '');
+    chmodSync(locked, 0o000);
+    const { problems } = await check(dir);
+    assert.equal(problems.length, 1, `${what}: ${problems.join('\n')}`);
+    assert.ok(problems[0].startsWith('graphs/$records/locked-graph.yaml: the cached checkout cannot be cleared: ') && problems[0].includes(locked), `${what}: ${problems[0]}`);
+    assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), reused ? [] : [`note: the cached ${kept} is not used again (its configuration sets core.hookspath); it cannot be deleted`], `${what}: nothing is said to be fetched anew while it cannot be`);
+    notes.mock.resetCalls();
+    chmodSync(locked, 0o755);
+    assert.deepEqual((await check(dir)).problems, [], `${what}: once the entry can be deleted the checkout is used again`);
+    assert.equal(existsSync(locked), false);
+    // Only now is the checkout that is not reused fetched anew, and noted (what is left of it decides the reason).
+    const noted = notes.mock.calls.map((call) => call.arguments[0]);
+    assert.equal(noted.length, reused ? 0 : 1, `${what}: ${noted.join('\n')}`);
+    if (!reused) assert.ok(noted[0].startsWith(`note: the cached ${kept} is not used again (`) && noted[0].endsWith('); it is fetched anew'), noted[0]);
+    notes.mock.resetCalls();
+  }
 });
 
 test('a kept branch history is reused when intact, and cloned again when it is not or cannot be brought up to date', (t) => {
@@ -997,9 +1013,9 @@ test('a kept branch history is reused when intact, and cloned again when it is n
   assert.equal(onBranch(url, 'main', source.commit, cache), true);
   const dir = join(cache, readdirSync(cache)[0]);
   const sentinel = join(dir, 'sentinel');
-  const cloned = () => {
+  const cloned = (run) => {
     writeFileSync(sentinel, '');
-    assert.equal(onBranch(url, 'main', source.commit, cache), true);
+    assert.equal(onBranch(url, 'main', source.commit, cache, new Set(), run), true);
     return !existsSync(sentinel);
   };
   assert.equal(cloned(), false, 'an intact clone is fetched into');
@@ -1017,11 +1033,24 @@ test('a kept branch history is reused when intact, and cloned again when it is n
     assert.equal(cloned(), true, `a clone with ${what} is cloned again`);
     assert.equal(config('--get', 'remote.origin.url'), url);
   }
-  // The last of them: git says why the fetch failed, or, when it prints
-  // nothing, the note says how git ended (git 2.54 is killed by SIGSEGV here,
-  // and a killed process has no exit status).
-  const reason = /^note: the cached \S+ is not used again \(it cannot be brought up to date: (.+)\); it is fetched anew$/.exec(notes.mock.calls.at(-1).arguments[0])?.[1];
-  assert.match(reason ?? '', /^(?:git fetch was killed by SIG[A-Z0-9]+|git fetch ended with status \d+|(?!git fetch ).+)$/, `the note was: ${notes.mock.calls.at(-1).arguments[0]}`);
+  // The last of them is a fetch git itself fails, in words (or with an end)
+  // that depend on its version: git 2.54 and 2.55 print nothing and are
+  // killed by SIGSEGV here.
+  const [start, end] = [`note: the cached ${dir} is not used again (it cannot be brought up to date: `, '); it is fetched anew'];
+  const note = () => notes.mock.calls.at(-1).arguments[0];
+  assert.ok(note().startsWith(start) && note().endsWith(end), `the note was: ${note()}`);
+  // The reason is the last line git printed, or, when it printed nothing, how
+  // it ended (a killed process has no exit status). Each fetch here is a
+  // process that ends as told; every other command is git's.
+  const fetchEnds = (code) => (args, options) => (args[2] === 'fetch' ? execFileSync(process.execPath, ['-e', code], { stdio: 'pipe' }).toString() : git(args, options));
+  for (const [how, code, reason] of [
+    ['is killed', 'process.kill(process.pid, "SIGKILL")', 'git fetch was killed by SIGKILL'],
+    ['ends with a status and prints nothing', 'process.exit(7)', 'git fetch ended with status 7'],
+    ['prints why it failed', 'console.error("fatal: first"); console.error("fatal: the branch cannot be written"); process.exit(128)', 'fatal: the branch cannot be written'],
+  ]) {
+    assert.equal(cloned(fetchEnds(code)), true, `a clone whose fetch ${how} is cloned again`);
+    assert.equal(note(), `${start}${reason}${end}`);
+  }
 });
 
 test('a kept branch history with a forged commit does not put a side branch\'s commit on the branch', () => {
