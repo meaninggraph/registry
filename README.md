@@ -9,7 +9,7 @@ depends on.
 |---|---|---|---|---|
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@184f9ee](https://github.com/demo-db/chinook/tree/184f9ee22101f8f56016c7963d18a406beffa013) | dataset | draft |
-| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@8e9755a](https://github.com/demo-db/northwind/tree/8e9755ae30bb99f15601a7dd3833199f59d37035) | dataset | draft |
+| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@3253072](https://github.com/demo-db/northwind/tree/3253072905253d3815dd5a3a2b94f8f257522424) | dataset | draft |
 
 ## This repository is the registry
 
