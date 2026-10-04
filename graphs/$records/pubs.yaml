@@ -1,0 +1,22 @@
+format: meaning-registry/draft-1
+title: Microsoft Pubs publishing database
+description: >-
+  What the classic Pubs sample database means: authors write publications,
+  publishers manage titles and employees, and stores record sales. Concepts
+  bind to the pinned ModelSpec model, with reusable people, organization,
+  employee, and price concepts from the core graph.
+kind: dataset
+status: draft
+homepage: https://demodb.dev/pubs/
+address: meaning://github.com/demo-db/pubs
+repository: https://github.com/demo-db/pubs
+commit: 34501946b0478b7e2ae13c15b4c57019109b5edc
+meaning_files:
+  - model/pubs.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/pubs.modelspec.hcl
+  - model/pubs.modelspec.json
+model_licence: MIT
+maintainers:
+  - trakhimenok
