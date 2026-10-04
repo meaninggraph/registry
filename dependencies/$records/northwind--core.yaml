@@ -1,0 +1,3 @@
+graph: northwind
+depends_on: core
+commit: cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7

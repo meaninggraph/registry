@@ -117,12 +117,12 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 2);
+  assert.equal(graphs, 3);
 });
 
 test('an unknown commit fails', async () => {
   const dir = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), commit: '0c34c1a3e0616fa53810916503b3bf3c8a925800' }));
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: cannot fetch 0c34c1a3e0616fa53810916503b3bf3c8a925800 from https:\/\/github\.com\/datatug\/chinookdb: .*not our ref/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: cannot fetch 0c34c1a3e0616fa53810916503b3bf3c8a925800 from https:\/\/github\.com\/demo-db\/chinook: .*not our ref/);
 });
 
 test('a path that does not exist at the commit fails', async () => {
@@ -130,7 +130,7 @@ test('a path that does not exist at the commit fails', async () => {
     const chinook = readRecord(d, 'graphs', 'chinook');
     writeRecord(d, 'graphs', 'chinook', { ...chinook, model_files: [...chinook.model_files, 'model/missing.modelspec.hcl'] });
   });
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit f0c71b9/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit 184f9ee/);
 });
 
 test('a meaning file that does not fit the meaning/draft-1 schema fails', async () => {
@@ -158,8 +158,8 @@ test('a licence that differs from the one the files declare fails', async () => 
 test('the same graph registered under a second id fails', async () => {
   const dir = registry((d) => writeRecord(d, 'graphs', 'chinook-again', readRecord(d, 'graphs', 'chinook')));
   const { problems } = await check(dir);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids \(chinook-again: meaning:\/\/github\.com\/datatug\/chinookdb, chinook: meaning:\/\/github\.com\/datatug\/chinookdb, compared ignoring case\); a graph is registered once$/);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/demo-db\/chinook is registered under 2 ids \(chinook-again: meaning:\/\/github\.com\/demo-db\/chinook, chinook: meaning:\/\/github\.com\/demo-db\/chinook, compared ignoring case\); a graph is registered once$/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/demo-db\/chinook is registered under 2 ids/);
 });
 
 test('an id that the record contract would reject fails', async () => {
@@ -169,7 +169,7 @@ test('an id that the record contract would reject fails', async () => {
 
 test('an address that is not the meaning:// form of the repository fails', async () => {
   const dir = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), address: 'meaning://github.com/datatug/chinook' }));
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: address must be meaning:\/\/github\.com\/datatug\/chinookdb/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: address must be meaning:\/\/github\.com\/demo-db\/chinook/);
 });
 
 test('a dependency pinned at another commit than the files pin fails', async () => {
@@ -282,17 +282,17 @@ test('a dependency pinned at a commit off its default branch fails, in any field
 // S2: one repository, two spellings.
 test('the same repository spelled with .git or in another case is refused', async () => {
   const dotGit = registry((d) => {
-    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/datatug/chinookdb.git', address: 'meaning://github.com/datatug/chinookdb.git' });
+    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/demo-db/chinook.git', address: 'meaning://github.com/demo-db/chinook.git' });
     writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
   });
   expectProblem((await check(dotGit)).problems, /^graphs\/\$records\/chinook-dup\.yaml: repository must be an https URL of a repository on github\.com, example\.test, such as https:\/\/github\.com\/\{org\}\/\{repo\} \(no trailing slash, \.git, "\." or "\.\." segments\)/);
   const cased = registry((d) => {
-    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/Datatug/ChinookDB', address: 'meaning://github.com/Datatug/ChinookDB' });
+    writeRecord(d, 'graphs', 'chinook-dup', { ...readRecord(d, 'graphs', 'chinook'), repository: 'https://github.com/Demo-DB/Chinook', address: 'meaning://github.com/Demo-DB/Chinook' });
     writeRecord(d, 'dependencies', 'chinook-dup--core', { ...readRecord(d, 'dependencies', 'chinook--core'), graph: 'chinook-dup' });
   });
   const { problems } = await check(cased);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids \(chinook-dup: https:\/\/github\.com\/Datatug\/ChinookDB, chinook: https:\/\/github\.com\/datatug\/chinookdb, compared ignoring case\)/);
-  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/datatug\/chinookdb is registered under 2 ids/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: repository https:\/\/github\.com\/demo-db\/chinook is registered under 2 ids \(chinook-dup: https:\/\/github\.com\/Demo-DB\/Chinook, chinook: https:\/\/github\.com\/demo-db\/chinook, compared ignoring case\)/);
+  expectProblem(problems, /^graphs\/\$records\/chinook\.yaml: address meaning:\/\/github\.com\/demo-db\/chinook is registered under 2 ids/);
 });
 
 test('a model path that leaves the repository is refused before the checker reads it', async () => {
@@ -316,7 +316,7 @@ test('a listed file that is a symbolic link is refused', async () => {
 });
 
 test('a file without a licence takes the repository default, and must declare one when there is none', async () => {
-  const withDefault = origin('licence-default', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', LICENSE: 'MIT License\n', 'LICENSE-CC0': CC0 });
+  const withDefault = origin('licence-default', { 'fixture.meaning.yaml': meaningFile(), 'm.modelspec.json': '{}', LICENSE: 'The MIT License (MIT)\n', 'LICENSE-CC0': CC0 });
   const wrong = registry((d) => writeRecord(d, 'graphs', 'licence-default', fixtureRecord(withDefault, { model_files: ['m.modelspec.json'], model_licence: 'CC0-1.0' })));
   expectProblem((await check(wrong)).problems, /^graphs\/\$records\/licence-default\.yaml: model_licence is CC0-1\.0, but m\.modelspec\.json declares no licence and the repository's default licence \(its LICENSE file\) is MIT/);
   const right = registry((d) => writeRecord(d, 'graphs', 'licence-default', fixtureRecord(withDefault, { model_files: ['m.modelspec.json'], model_licence: 'MIT' })));
@@ -339,7 +339,7 @@ test('a tag must be that exact tag, not a branch whose name ends like it', async
 
 test('a missing meaning file, a stray record file and bad paths fail', async () => {
   const missing = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), meaning_files: ['model/missing.meaning.yaml'] }));
-  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit f0c71b9/);
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit 184f9ee/);
   const stray = registry((d) => writeFileSync(join(d, 'graphs', '$records', 'stray.yml'), 'x: 1\n'));
   expectProblem((await check(stray)).problems, /^graphs\/\$records\/stray\.yml: a record is a <key>\.yaml file/);
   const paths = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), meaning_files: ['../x.meaning.yaml', 'README.md'], model_files: ['a.hcl'], model_licence: 'MIT' }));
@@ -372,7 +372,7 @@ test('a homepage is optional: with one it is checked and indexed, without one th
 
 // What a homepage is allowed to be, as README.md states it for index.json.
 const legitimateHomepages = [
-  'https://chinookdb.com/model/',
+  'https://chinook.demodb.dev/model/',
   'https://example.com/',
   'https://graphs.example.com/fixture/',
   'https://github.com/datatug/chinookdb/',
@@ -533,7 +533,7 @@ test('a refused homepage fails the whole check and is never requested: git is as
   let result;
   try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
   expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
-  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(datatug\/chinookdb|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/chinook|demo-db\/northwind|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
 });
 
 test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {
@@ -632,7 +632,7 @@ test('a definition whose columns_order does not list exactly its columns, or tha
   writeFileSync(definition(dir), stringifyYaml(doc));
   writeRecord(dir, 'graphs', 'chinook', { ...readRecord(dir, 'graphs', 'chinook'), id: 'evil' });
   const read = readRegistry(dir);
-  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core']);
+  assert.deepEqual(JSON.parse(buildIndex(read)).graphs.map((graph) => graph.id), ['chinook', 'core', 'northwind']);
   expectProblem([...read.problems, ...recordProblems(read)], /"id" is not a column of this collection/);
 });
 
@@ -755,8 +755,8 @@ test('index.json carries a checksum of its graphs array', () => {
   const index = JSON.parse(readFileSync(join(root, 'index.json'), 'utf8'));
   const sha = execFileSync('shasum', ['-a', '256'], { input: JSON.stringify(index.graphs) }).toString().split(' ')[0];
   assert.equal(index.checksum, `sha256:${sha}`);
-  assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core']);
-  assert.equal(index.graphs[0].homepage, 'https://chinookdb.com/model/');
+  assert.deepEqual(index.graphs.map((graph) => graph.id), ['chinook', 'core', 'northwind']);
+  assert.equal(index.graphs[0].homepage, 'https://chinook.demodb.dev/model/');
   assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
   assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
   assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
