@@ -130,7 +130,7 @@ test('a path that does not exist at the commit fails', async () => {
     const chinook = readRecord(d, 'graphs', 'chinook');
     writeRecord(d, 'graphs', 'chinook', { ...chinook, model_files: [...chinook.model_files, 'model/missing.modelspec.hcl'] });
   });
-  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit 184f9ee/);
+  expectProblem((await check(dir)).problems, /^graphs\/\$records\/chinook\.yaml: model_files: model\/missing\.modelspec\.hcl does not exist at commit f11b119/);
 });
 
 test('a meaning file that does not fit the meaning/draft-1 schema fails', async () => {
@@ -174,14 +174,14 @@ test('an address that is not the meaning:// form of the repository fails', async
 
 test('a dependency pinned at another commit than the files pin fails', async () => {
   const dir = registry((d) => writeRecord(d, 'dependencies', 'chinook--core', { ...readRecord(d, 'dependencies', 'chinook--core'), commit: '4214bc73cbfcc706c0ea9c8873eba991d9ddbb91' }));
-  expectProblem((await check(dir)).problems, /^dependencies\/\$records\/chinook--core\.yaml: commit is 4214bc73cbfcc706c0ea9c8873eba991d9ddbb91, but the meaning files of chinook pin meaning:\/\/github\.com\/meaninggraph\/core at cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7/);
+  expectProblem((await check(dir)).problems, /^dependencies\/\$records\/chinook--core\.yaml: commit is 4214bc73cbfcc706c0ea9c8873eba991d9ddbb91, but the meaning files of chinook pin meaning:\/\/github\.com\/meaninggraph\/core at 982916d73f0a35ff2558b0062f58aa3ac4f24d97/);
 });
 
 test('a dependency that the files do not declare fails, and so does one they do not use', async () => {
   const missing = registry((d) => rmSync(record(d, 'dependencies', 'chinook--core')));
-  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: the meaning files reference meaning:\/\/github\.com\/meaninggraph\/core \(pinned cb97dbc[0-9a-f]+\); add dependencies\/\$records\/chinook--core\.yaml/);
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: the meaning files reference meaning:\/\/github\.com\/meaninggraph\/core \(pinned 982916d[0-9a-f]+\); add dependencies\/\$records\/chinook--core\.yaml/);
   const unused = registry((d) => writeRecord(d, 'dependencies', 'core--chinook', { graph: 'core', depends_on: 'chinook', commit: '6f1bac962bccadeaa3f85e19454486ad79544ad4' }));
-  expectProblem((await check(unused)).problems, /^dependencies\/\$records\/core--chinook\.yaml: core does not reference chinook at commit cb97dbc[0-9a-f]+; remove the dependency/);
+  expectProblem((await check(unused)).problems, /^dependencies\/\$records\/core--chinook\.yaml: core does not reference chinook at commit 982916d[0-9a-f]+; remove the dependency/);
 });
 
 test('a reference to a graph that is not registered fails', async () => {
@@ -339,7 +339,7 @@ test('a tag must be that exact tag, not a branch whose name ends like it', async
 
 test('a missing meaning file, a stray record file and bad paths fail', async () => {
   const missing = registry((d) => writeRecord(d, 'graphs', 'chinook', { ...readRecord(d, 'graphs', 'chinook'), meaning_files: ['model/missing.meaning.yaml'] }));
-  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit 184f9ee/);
+  expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: meaning_files: model\/missing\.meaning\.yaml does not exist at commit f11b119/);
   const stray = registry((d) => writeFileSync(join(d, 'graphs', '$records', 'stray.yml'), 'x: 1\n'));
   expectProblem((await check(stray)).problems, /^graphs\/\$records\/stray\.yml: a record is a <key>\.yaml file/);
   const paths = registry((d) => writeRecord(d, 'graphs', 'core', { ...readRecord(d, 'graphs', 'core'), meaning_files: ['../x.meaning.yaml', 'README.md'], model_files: ['a.hcl'], model_licence: 'MIT' }));
@@ -553,7 +553,7 @@ test('a record has declared columns only: an undeclared key, an id override and 
     const entry = JSON.parse(buildIndex(read)).graphs.find((graph) => graph.id === 'chinook');
     assert.equal(entry.id, 'chinook', `${name}: the id is the file name`);
     for (const key of Object.keys(extra).filter((key) => key !== 'id')) assert.equal(key in entry && key !== 'depends', false, `${name}: ${key} is not in the entry`);
-    assert.deepEqual(entry.depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
+    assert.deepEqual(entry.depends, [{ id: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97' }]);
   }
   // A YAML merge key hides a homepage from the URL check; it is refused in every spelling the reader
   // would merge: plain, quoted, as a complex key, with an explicit tag, and under a %YAML 1.1 directive.
@@ -759,7 +759,7 @@ test('index.json carries a checksum of its graphs array', () => {
   assert.equal(index.graphs[0].homepage, 'https://chinook.demodb.dev/model/');
   assert.deepEqual(Object.keys(index.graphs[0]).slice(0, 7), ['id', 'format', 'title', 'description', 'kind', 'status', 'homepage']);
   assert.equal('homepage' in index.graphs[1], false, 'the core graph has no homepage');
-  assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: 'cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7' }]);
+  assert.deepEqual(index.graphs[0].depends, [{ id: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97' }]);
 });
 
 test('a file declares its licence in its first lines or in a meaning file field', () => {

@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:0737def9b4bb852ddcc2d1fb76f8807aecf9ca41a394d6e6a4ed45a5614badb1",
+  "checksum": "sha256:e30762deb9b7025ba46f61e110c1543a97cc31f714f9cbddf0c221f52f6cb832",
   "graphs": [
     {
       "id": "chinook",
@@ -12,7 +12,7 @@
       "homepage": "https://chinook.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/chinook",
       "repository": "https://github.com/demo-db/chinook",
-      "commit": "184f9ee22101f8f56016c7963d18a406beffa013",
+      "commit": "f11b1192ed9f48cdd4f788d1d4ffde0e972ee04b",
       "meaning_files": [
         "model/chinook.meaning.yaml"
       ],
@@ -28,7 +28,7 @@
       "depends": [
         {
           "id": "core",
-          "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7"
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
         }
       ]
     },
@@ -41,7 +41,7 @@
       "status": "draft",
       "address": "meaning://github.com/meaninggraph/core",
       "repository": "https://github.com/meaninggraph/core",
-      "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7",
+      "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97",
       "meaning_files": [
         "*.meaning.yaml"
       ],
@@ -61,7 +61,7 @@
       "homepage": "https://northwind.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/northwind",
       "repository": "https://github.com/demo-db/northwind",
-      "commit": "3253072905253d3815dd5a3a2b94f8f257522424",
+      "commit": "f5855699eafaba6f09b7f4897abdb2a304698b67",
       "meaning_files": [
         "model/northwind.meaning.yaml"
       ],
@@ -77,7 +77,7 @@
       "depends": [
         {
           "id": "core",
-          "commit": "cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7"
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
         }
       ]
     }

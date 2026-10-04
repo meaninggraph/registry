@@ -7,9 +7,9 @@ depends on.
 
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@cb97dbc](https://github.com/meaninggraph/core/tree/cb97dbcd9e951b00e7d46cb2e0c4e120c24c8db7) | universal | draft |
-| `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@184f9ee](https://github.com/demo-db/chinook/tree/184f9ee22101f8f56016c7963d18a406beffa013) | dataset | draft |
-| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@3253072](https://github.com/demo-db/northwind/tree/3253072905253d3815dd5a3a2b94f8f257522424) | dataset | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@982916d](https://github.com/meaninggraph/core/tree/982916d73f0a35ff2558b0062f58aa3ac4f24d97) | universal | draft |
+| `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@f11b119](https://github.com/demo-db/chinook/tree/f11b1192ed9f48cdd4f788d1d4ffde0e972ee04b) | dataset | draft |
+| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@f585569](https://github.com/demo-db/northwind/tree/f5855699eafaba6f09b7f4897abdb2a304698b67) | dataset | draft |
 
 ## This repository is the registry
 
