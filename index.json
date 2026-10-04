@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:e30762deb9b7025ba46f61e110c1543a97cc31f714f9cbddf0c221f52f6cb832",
+  "checksum": "sha256:2e45189b0c407c1c2ea02fdf216d693c0fd8b2bf5c8fb18d24f4116be4d7272e",
   "graphs": [
     {
       "id": "chinook",
@@ -12,7 +12,7 @@
       "homepage": "https://chinook.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/chinook",
       "repository": "https://github.com/demo-db/chinook",
-      "commit": "f11b1192ed9f48cdd4f788d1d4ffde0e972ee04b",
+      "commit": "26e852cca00101f53a84ef8ee1f1ae389067f5cf",
       "meaning_files": [
         "model/chinook.meaning.yaml"
       ],
@@ -61,7 +61,7 @@
       "homepage": "https://northwind.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/northwind",
       "repository": "https://github.com/demo-db/northwind",
-      "commit": "f5855699eafaba6f09b7f4897abdb2a304698b67",
+      "commit": "e74726515c3833620b54b7a50d1d273276dd23c1",
       "meaning_files": [
         "model/northwind.meaning.yaml"
       ],

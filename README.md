@@ -8,8 +8,8 @@ depends on.
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@982916d](https://github.com/meaninggraph/core/tree/982916d73f0a35ff2558b0062f58aa3ac4f24d97) | universal | draft |
-| `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@f11b119](https://github.com/demo-db/chinook/tree/f11b1192ed9f48cdd4f788d1d4ffde0e972ee04b) | dataset | draft |
-| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@f585569](https://github.com/demo-db/northwind/tree/f5855699eafaba6f09b7f4897abdb2a304698b67) | dataset | draft |
+| `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@26e852c](https://github.com/demo-db/chinook/tree/26e852cca00101f53a84ef8ee1f1ae389067f5cf) | dataset | draft |
+| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@e747265](https://github.com/demo-db/northwind/tree/e74726515c3833620b54b7a50d1d273276dd23c1) | dataset | draft |
 
 ## This repository is the registry
 
