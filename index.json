@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:a9d443be426e69732927d64ce4ad0e8510b1e408110ccf08268c7aa581499c6d",
+  "checksum": "sha256:9fbe743aa39c8b63a16582d3b5b8e1797ae1845f34890aefef446c868b66629b",
   "graphs": [
     {
       "id": "chinook",
@@ -91,7 +91,7 @@
       "homepage": "https://demodb.dev/pubs/",
       "address": "meaning://github.com/demo-db/pubs",
       "repository": "https://github.com/demo-db/pubs",
-      "commit": "34501946b0478b7e2ae13c15b4c57019109b5edc",
+      "commit": "6c06c5c7395b03ff1a02c2b1a21485add3e1b65b",
       "meaning_files": [
         "model/pubs.meaning.yaml"
       ],
@@ -101,6 +101,36 @@
         "model/pubs.modelspec.json"
       ],
       "model_licence": "MIT",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
+      "id": "sakila",
+      "format": "meaning-registry/draft-1",
+      "title": "Sakila video rental database",
+      "description": "The meaning of the MySQL Sakila sample database: films, actors, customers, rentals, payments and stores. Dataset concepts reuse pinned universal concepts from the MeaningGraph core.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://sakila.demodb.dev/model/",
+      "address": "meaning://github.com/demo-db/sakila",
+      "repository": "https://github.com/demo-db/sakila",
+      "commit": "0cb13fd76b2ce590f68efa99a6fbf7effcf6e4ce",
+      "meaning_files": [
+        "model/sakila.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/sakila.modelspec.hcl",
+        "model/sakila.modelspec.json"
+      ],
+      "model_licence": "BSD-3-Clause",
       "maintainers": [
         "trakhimenok"
       ],

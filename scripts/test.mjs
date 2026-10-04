@@ -117,7 +117,17 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 4);
+  assert.equal(graphs, 5);
+  const pubs = readRecord(root, 'graphs', 'pubs');
+  assert.equal(pubs.commit, '6c06c5c7395b03ff1a02c2b1a21485add3e1b65b');
+  const sakila = readRecord(root, 'graphs', 'sakila');
+  assert.deepEqual(
+    [sakila.address, sakila.repository, sakila.commit, sakila.meaning_licence, sakila.model_licence],
+    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', '0cb13fd76b2ce590f68efa99a6fbf7effcf6e4ce', 'CC0-1.0', 'BSD-3-Clause'],
+  );
+  assert.deepEqual(readRecord(root, 'dependencies', 'sakila--core'), {
+    graph: 'sakila', depends_on: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97',
+  });
 });
 
 test('an unknown commit fails', async () => {
