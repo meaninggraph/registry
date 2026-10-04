@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { after, test } from 'node:test';
 import { deflateSync } from 'node:zlib';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parseHcl, serializeModel, toModelspecJson } from './lib/modelspec.mjs';
 import { buildIndex, cacheDirFor, checkRegistry, checkerRepository, declaredLicence, defaultBranch, defaultCacheDir, fetchCommit, git, gitEnv, intactCheckout, loadChecker, onBranch, readRegistry, recordProblems, repositoryHosts, setGitProtocols } from './lib/registry.mjs';
 import { homepageProblem, maxHomepageLength, publicHttpsProblem } from './lib/urls.mjs';
 
@@ -109,6 +110,14 @@ const fixtureRecord = (source, extra = {}) => ({
   meaning_licence: 'CC0-1.0',
   maintainers: ['trakhimenok'],
   ...extra,
+});
+const fixtureModelHcl = '# SPDX-License-Identifier: BSD-3-Clause\nentity "Fixture" {\n  key = ["id"]\n  property "id" {\n    type = "string"\n  }\n}\n';
+const fixtureModelJson = (hcl = fixtureModelHcl) => serializeModel(toModelspecJson(parseHcl(hcl), { id: 'fixture', name: 'Fixture', version: '1.0.0' }));
+const fixtureModelFiles = (hcl = fixtureModelHcl, json = fixtureModelJson(hcl)) => ({
+  'fixture.meaning.yaml': meaningFile(),
+  'model/fixture.modelspec.hcl': hcl,
+  'model/fixture.modelspec.json': json,
+  LICENSE: 'The MIT License (MIT)\n',
 });
 // What recordProblems needs besides the graphs: the columns the committed collection definitions declare.
 const context = { maintainers: readRegistry(root).maintainers, columns: readRegistry(root).columns };
@@ -337,13 +346,8 @@ test('a file without a licence takes the repository default, and must declare on
 });
 
 test('a ModelSpec JSON twin inherits its explicit HCL licence', async () => {
-  const hcl = '# SPDX-License-Identifier: BSD-3-Clause\nentity "Fixture" {}\n';
-  const source = origin('modelspec-license-twin', {
-    'fixture.meaning.yaml': meaningFile(),
-    'model/fixture.modelspec.hcl': hcl,
-    'model/fixture.modelspec.json': '{}\n',
-    LICENSE: 'The MIT License (MIT)\n',
-  });
+  const hcl = fixtureModelHcl;
+  const source = origin('modelspec-license-twin', fixtureModelFiles());
   const modelFiles = ['model/fixture.modelspec.hcl', 'model/fixture.modelspec.json'];
   const valid = registry((d) => writeRecord(d, 'graphs', 'modelspec-license-twin', fixtureRecord(source, { model_files: modelFiles, model_licence: 'BSD-3-Clause' })));
   assert.deepEqual((await check(valid)).problems, []);
@@ -351,6 +355,35 @@ test('a ModelSpec JSON twin inherits its explicit HCL licence', async () => {
   const problems = (await check(wrong)).problems;
   expectProblem(problems, /^graphs\/\$records\/modelspec-license-twin\.yaml: model_licence is MIT, but model\/fixture\.modelspec\.hcl declares BSD-3-Clause/);
   expectProblem(problems, /^graphs\/\$records\/modelspec-license-twin\.yaml: model_licence is MIT, but model\/fixture\.modelspec\.json declares BSD-3-Clause/);
+});
+
+test('a paired ModelSpec JSON AST must be valid, duplicate-free, and match its HCL source', async () => {
+  const modelFiles = ['model/fixture.modelspec.hcl', 'model/fixture.modelspec.json'];
+  const baseRecord = (source) => fixtureRecord(source, { model_files: modelFiles, model_licence: 'BSD-3-Clause' });
+
+  const divergentAst = toModelspecJson(parseHcl(fixtureModelHcl), { id: 'fixture', name: 'Fixture', version: '1.0.0' });
+  divergentAst.entities.Fixture.properties.id.type = 'int';
+  const divergent = origin('modelspec-divergent-twin', fixtureModelFiles(fixtureModelHcl, serializeModel(divergentAst)));
+  const mismatch = registry((d) => writeRecord(d, 'graphs', 'modelspec-divergent-twin', baseRecord(divergent)));
+  expectProblem((await check(mismatch)).problems, /^graphs\/\$records\/modelspec-divergent-twin\.yaml: model\/fixture\.modelspec\.json does not match model\/fixture\.modelspec\.hcl: entities\.Fixture\.properties\.id\.type is "string" in the HCL source but "int" in the JSON AST$/);
+
+  const duplicate = origin('modelspec-duplicate-json', fixtureModelFiles(fixtureModelHcl, '{"modelspec":"1.0-draft","module":{},"module":{}}\n'));
+  const duplicateDir = registry((d) => writeRecord(d, 'graphs', 'modelspec-duplicate-json', baseRecord(duplicate)));
+  expectProblem((await check(duplicateDir)).problems, /^graphs\/\$records\/modelspec-duplicate-json\.yaml: model\/fixture\.modelspec\.json is not valid ModelSpec JSON: duplicate name "module"/);
+
+  const malformed = origin('modelspec-malformed-json', fixtureModelFiles(fixtureModelHcl, '{ invalid json\n'));
+  const malformedDir = registry((d) => writeRecord(d, 'graphs', 'modelspec-malformed-json', baseRecord(malformed)));
+  expectProblem((await check(malformedDir)).problems, /^graphs\/\$records\/modelspec-malformed-json\.yaml: model\/fixture\.modelspec\.json is not valid ModelSpec JSON: expected a name/);
+
+  const invalidAst = serializeModel({ ...toModelspecJson(parseHcl(fixtureModelHcl), { id: 'fixture', name: 'Fixture', version: '1.0.0' }), module: {} });
+  const invalid = origin('modelspec-invalid-json', fixtureModelFiles(fixtureModelHcl, invalidAst));
+  const invalidDir = registry((d) => writeRecord(d, 'graphs', 'modelspec-invalid-json', baseRecord(invalid)));
+  expectProblem((await check(invalidDir)).problems, /^graphs\/\$records\/modelspec-invalid-json\.yaml: model\/fixture\.modelspec\.json is not a valid ModelSpec JSON AST: module\.id and module\.version are required$/);
+
+  const unsupportedHcl = `${fixtureModelHcl}\ncollection "FixtureRows" {}\n`;
+  const unsupported = origin('modelspec-unsupported-hcl', fixtureModelFiles(unsupportedHcl, fixtureModelJson()));
+  const unsupportedDir = registry((d) => writeRecord(d, 'graphs', 'modelspec-unsupported-hcl', baseRecord(unsupported)));
+  expectProblem((await check(unsupportedDir)).problems, /^graphs\/\$records\/modelspec-unsupported-hcl\.yaml: model\/fixture\.modelspec\.hcl cannot be converted to ModelSpec JSON: line \d+: top-level collection blocks are not supported by this converter/);
 });
 
 test('CC-BY-SA-3.0 SPDX identifiers are recognized as repository defaults', async () => {
