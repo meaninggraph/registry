@@ -9,7 +9,7 @@ status: draft
 homepage: https://demodb.dev/adventureworks/
 address: meaning://github.com/demo-db/adventureworks
 repository: https://github.com/demo-db/adventureworks
-commit: cd8dcdf2079fe31480ad6d6c024b8c17cb91beea
+commit: 31bdb4eceff01367ce812b2844530ed17a7d35ae
 meaning_files:
   - model/adventureworks.meaning.yaml
 meaning_licence: CC0-1.0

@@ -132,7 +132,7 @@ test('the registry as committed passes every check', async () => {
   const sakila = readRecord(root, 'graphs', 'sakila');
   assert.deepEqual(
     [sakila.address, sakila.repository, sakila.commit, sakila.meaning_licence, sakila.model_licence],
-    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', '6567d30aec1592fe0917934a8bbe74ff70b04b01', 'CC0-1.0', 'BSD-3-Clause'],
+    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', 'cb9a81a8cbedcd8831737f281f888d5d584fae85', 'CC0-1.0', 'BSD-3-Clause'],
   );
   assert.deepEqual(readRecord(root, 'dependencies', 'sakila--core'), {
     graph: 'sakila', depends_on: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97',
