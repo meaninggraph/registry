@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:6e271252414722151df34895326d1321c71dc0e6a0b2decc6a8a4de0394317a0",
+  "checksum": "sha256:9a3f50b6b52aac47a5c3507f9cfa119f540b2a1cc0809b60d828540836573023",
   "graphs": [
     {
       "id": "adventureworks",
@@ -12,7 +12,7 @@
       "homepage": "https://demodb.dev/adventureworks/",
       "address": "meaning://github.com/demo-db/adventureworks",
       "repository": "https://github.com/demo-db/adventureworks",
-      "commit": "31bdb4eceff01367ce812b2844530ed17a7d35ae",
+      "commit": "5028a27189b487d6fd8025fafc1307aada707fd2",
       "meaning_files": [
         "model/adventureworks.meaning.yaml"
       ],
