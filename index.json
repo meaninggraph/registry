@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:ebef0b89f6998a3cd25ef7791bc2ed08b14a584d7d2dbcfa599ec42f60c0e24d",
+  "checksum": "sha256:9419806427ff78a1a54c4e48bb5580ab4483ae50a92317a3f2e597f566a25bf1",
   "graphs": [
     {
       "id": "adventureworks",
@@ -112,6 +112,35 @@
       ]
     },
     {
+      "id": "geonames",
+      "format": "meaning-registry/draft-1",
+      "title": "GeoNames source projection",
+      "description": "Source-qualified GeoNames countries, places, admin1 and alternate names, retaining native keys, historic country rows and unresolved references. Auxiliary demo country bridges preserve separate source property scopes; their target bindings alone do not authorize raw-label interoperability. Model and meaning metadata are CC0-1.0; source GeoNames data is CC-BY-4.0.",
+      "kind": "dataset",
+      "status": "draft",
+      "address": "meaning://github.com/ingitdb/geo-ingitdb",
+      "repository": "https://github.com/ingitdb/geo-ingitdb",
+      "commit": "6f4cf1269bc393048f6b204069135a62f0bb6c02",
+      "meaning_files": [
+        "model/geonames.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/geonames.modelspec.hcl",
+        "model/geonames.modelspec.json"
+      ],
+      "model_licence": "CC0-1.0",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
       "id": "northwind",
       "format": "meaning-registry/draft-1",
       "title": "Northwind small-business database",
@@ -161,6 +190,35 @@
         "model/pubs.modelspec.json"
       ],
       "model_licence": "MIT",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
+      "id": "ror",
+      "format": "meaning-registry/draft-1",
+      "title": "Research Organization Registry source projection",
+      "description": "Accepted public source roles for the complete ROR schema 2 organizations recordset, retaining native URL identity, all statuses and ordered location and relationship projections. Source bindings do not authorize user field mappings or name-to-identity matching. Model and meaning metadata are CC0-1.0; embedded GeoNames data remains CC-BY-4.0 under the provider attribution.",
+      "kind": "dataset",
+      "status": "draft",
+      "address": "meaning://github.com/ingitdb/ror-ingitdb",
+      "repository": "https://github.com/ingitdb/ror-ingitdb",
+      "commit": "dc78c1e929f1f10018f8c39e690351059a50c71f",
+      "meaning_files": [
+        "model/ror.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/ror.modelspec.hcl",
+        "model/ror.modelspec.json"
+      ],
+      "model_licence": "CC0-1.0",
       "maintainers": [
         "trakhimenok"
       ],

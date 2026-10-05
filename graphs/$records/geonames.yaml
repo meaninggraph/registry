@@ -1,0 +1,22 @@
+format: meaning-registry/draft-1
+title: GeoNames source projection
+description: >-
+  Source-qualified GeoNames countries, places, admin1 and alternate names,
+  retaining native keys, historic country rows and unresolved references.
+  Auxiliary demo country bridges preserve separate source property scopes;
+  their target bindings alone do not authorize raw-label interoperability.
+  Model and meaning metadata are CC0-1.0; source GeoNames data is CC-BY-4.0.
+kind: dataset
+status: draft
+address: meaning://github.com/ingitdb/geo-ingitdb
+repository: https://github.com/ingitdb/geo-ingitdb
+commit: 6f4cf1269bc393048f6b204069135a62f0bb6c02
+meaning_files:
+  - model/geonames.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/geonames.modelspec.hcl
+  - model/geonames.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok

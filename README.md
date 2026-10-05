@@ -11,6 +11,8 @@ depends on.
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@26e852c](https://github.com/demo-db/chinook/tree/26e852cca00101f53a84ef8ee1f1ae389067f5cf) | dataset | draft |
 | `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@e747265](https://github.com/demo-db/northwind/tree/e74726515c3833620b54b7a50d1d273276dd23c1) | dataset | draft |
 | `pubs` | `meaning://github.com/demo-db/pubs` | [demo-db/pubs@3450194](https://github.com/demo-db/pubs/tree/34501946b0478b7e2ae13c15b4c57019109b5edc) | dataset | draft |
+| `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@6f4cf12](https://github.com/ingitdb/geo-ingitdb/tree/6f4cf1269bc393048f6b204069135a62f0bb6c02) | dataset | draft |
+| `ror` | `meaning://github.com/ingitdb/ror-ingitdb` | [ingitdb/ror-ingitdb@dc78c1e](https://github.com/ingitdb/ror-ingitdb/tree/dc78c1e929f1f10018f8c39e690351059a50c71f) | dataset | draft |
 
 ## This repository is the registry
 

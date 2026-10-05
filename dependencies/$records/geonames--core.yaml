@@ -1,0 +1,3 @@
+graph: geonames
+depends_on: core
+commit: 982916d73f0a35ff2558b0062f58aa3ac4f24d97

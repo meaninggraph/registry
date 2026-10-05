@@ -1,0 +1,22 @@
+format: meaning-registry/draft-1
+title: Research Organization Registry source projection
+description: >-
+  Accepted public source roles for the complete ROR schema 2 organizations
+  recordset, retaining native URL identity, all statuses and ordered location
+  and relationship projections. Source bindings do not authorize user field
+  mappings or name-to-identity matching. Model and meaning metadata are CC0-1.0;
+  embedded GeoNames data remains CC-BY-4.0 under the provider attribution.
+kind: dataset
+status: draft
+address: meaning://github.com/ingitdb/ror-ingitdb
+repository: https://github.com/ingitdb/ror-ingitdb
+commit: dc78c1e929f1f10018f8c39e690351059a50c71f
+meaning_files:
+  - model/ror.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/ror.modelspec.hcl
+  - model/ror.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok
