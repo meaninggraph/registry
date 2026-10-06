@@ -200,7 +200,8 @@ test('a dependency that the files do not declare fails, and so does one they do 
   const missing = registry((d) => rmSync(record(d, 'dependencies', 'chinook--core')));
   expectProblem((await check(missing)).problems, /^graphs\/\$records\/chinook\.yaml: the meaning files reference meaning:\/\/github\.com\/meaninggraph\/core \(pinned 982916d[0-9a-f]+\); add dependencies\/\$records\/chinook--core\.yaml/);
   const unused = registry((d) => writeRecord(d, 'dependencies', 'core--chinook', { graph: 'core', depends_on: 'chinook', commit: '6f1bac962bccadeaa3f85e19454486ad79544ad4' }));
-  expectProblem((await check(unused)).problems, /^dependencies\/\$records\/core--chinook\.yaml: core does not reference chinook at commit 982916d[0-9a-f]+; remove the dependency/);
+  const { problems } = await check(unused);
+  assert.ok(problems.includes(`dependencies/$records/core--chinook.yaml: core does not reference chinook at commit ${readRecord(unused, 'graphs', 'core').commit}; remove the dependency`), problems.join('\n'));
 });
 
 test('a reference to a graph that is not registered fails', async () => {
