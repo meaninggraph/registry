@@ -126,7 +126,7 @@ const expectProblem = (problems, pattern) => assert.ok(problems.some((problem) =
 test('the registry as committed passes every check', async () => {
   const { problems, graphs } = await check(root);
   assert.deepEqual(problems, []);
-  assert.equal(graphs, 9);
+  assert.equal(graphs, 10);
   const pubs = readRecord(root, 'graphs', 'pubs');
   assert.equal(pubs.commit, '6c06c5c7395b03ff1a02c2b1a21485add3e1b65b');
   const sakila = readRecord(root, 'graphs', 'sakila');
@@ -603,7 +603,7 @@ test('a refused homepage fails the whole check and is never requested: git is as
   let result;
   try { result = await checkRegistry({ root: dir, urlFor: (url) => { asked.push(url); return urlFor(url); }, cacheDir, ...seen }); } finally { globalThis.fetch = realFetch; }
   expectProblem(result.problems, /^graphs\/\$records\/core\.yaml: homepage: must be https, not http/);
-  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(adventureworks|chinook|employees|northwind|pubs|sakila)|ingitdb\/(geo-ingitdb|ror-ingitdb)|meaninggraph\/core)$/.test(url)), `asked for ${asked.join(', ')}`);
+  assert.ok(asked.length > 0 && asked.every((url) => /^https:\/\/github\.com\/(demo-db\/(adventureworks|chinook|employees|northwind|pubs|sakila)|ingitdb\/(geo-ingitdb|ror-ingitdb)|meaninggraph\/core|openvaultdb\/ovdb)$/.test(url)), `asked for ${asked.join(', ')}`);
 });
 
 test('a record has declared columns only: an undeclared key, an id override and a merge key are refused, and none reaches the index', async () => {
