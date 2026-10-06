@@ -9,7 +9,7 @@ kind: universal
 status: draft
 address: meaning://github.com/meaninggraph/core
 repository: https://github.com/meaninggraph/core
-commit: 982916d73f0a35ff2558b0062f58aa3ac4f24d97
+commit: 1de4de09a449b9978a6155f226669e02986cb7d9
 meaning_files:
   - '*.meaning.yaml'
 meaning_licence: CC0-1.0

@@ -1,0 +1,3 @@
+graph: ecb-daily
+depends_on: core
+commit: 1de4de09a449b9978a6155f226669e02986cb7d9

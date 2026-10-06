@@ -1,0 +1,24 @@
+format: meaning-registry/draft-1
+title: ECB daily euro foreign exchange reference quotes
+description: >-
+  Preparatory source meanings for native time, currency and rate strings from
+  the ECB daily XML resource. Reference date has no publication instant;
+  the indicative rate expresses quote-currency units per one EUR with lexical
+  digits preserved. No stable cross-read identity, synthetic EUR row, reciprocal,
+  historical lookup or accepted country/tender/transaction join is asserted.
+  CC0 covers authored metadata only; ECB rate reuse terms remain separate.
+  Source execution and paid applicability stay blocked.
+kind: dataset
+status: draft
+address: meaning://github.com/openvaultdb/ovdb
+repository: https://github.com/openvaultdb/ovdb
+commit: 6751a14ae12bfeadbcc9a7c6aa6174c81d697e20
+meaning_files:
+  - publisher/source/model/ecb-daily.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - publisher/source/model/ecb-daily.modelspec.hcl
+  - publisher/source/model/ecb-daily.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok
