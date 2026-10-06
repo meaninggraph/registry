@@ -7,12 +7,16 @@ depends on.
 
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@982916d](https://github.com/meaninggraph/core/tree/982916d73f0a35ff2558b0062f58aa3ac4f24d97) | universal | draft |
+| `adventureworks` | `meaning://github.com/demo-db/adventureworks` | [demo-db/adventureworks@5028a27](https://github.com/demo-db/adventureworks/tree/5028a27189b487d6fd8025fafc1307aada707fd2) | dataset | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@26e852c](https://github.com/demo-db/chinook/tree/26e852cca00101f53a84ef8ee1f1ae389067f5cf) | dataset | draft |
-| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@e747265](https://github.com/demo-db/northwind/tree/e74726515c3833620b54b7a50d1d273276dd23c1) | dataset | draft |
-| `pubs` | `meaning://github.com/demo-db/pubs` | [demo-db/pubs@3450194](https://github.com/demo-db/pubs/tree/34501946b0478b7e2ae13c15b4c57019109b5edc) | dataset | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@1de4de0](https://github.com/meaninggraph/core/tree/1de4de09a449b9978a6155f226669e02986cb7d9) | universal | draft |
+| `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@6751a14](https://github.com/openvaultdb/ovdb/tree/6751a14ae12bfeadbcc9a7c6aa6174c81d697e20) | dataset | draft |
+| `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@2069e26](https://github.com/demo-db/employees/tree/2069e26e8fdb60bdb16507f75569a579cf3da7cf) | dataset | draft |
 | `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@6f4cf12](https://github.com/ingitdb/geo-ingitdb/tree/6f4cf1269bc393048f6b204069135a62f0bb6c02) | dataset | draft |
+| `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@e747265](https://github.com/demo-db/northwind/tree/e74726515c3833620b54b7a50d1d273276dd23c1) | dataset | draft |
+| `pubs` | `meaning://github.com/demo-db/pubs` | [demo-db/pubs@6c06c5c](https://github.com/demo-db/pubs/tree/6c06c5c7395b03ff1a02c2b1a21485add3e1b65b) | dataset | draft |
 | `ror` | `meaning://github.com/ingitdb/ror-ingitdb` | [ingitdb/ror-ingitdb@dc78c1e](https://github.com/ingitdb/ror-ingitdb/tree/dc78c1e929f1f10018f8c39e690351059a50c71f) | dataset | draft |
+| `sakila` | `meaning://github.com/demo-db/sakila` | [demo-db/sakila@cb9a81a](https://github.com/demo-db/sakila/tree/cb9a81a8cbedcd8831737f281f888d5d584fae85) | dataset | draft |
 
 ## This repository is the registry
 
