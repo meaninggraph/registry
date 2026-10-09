@@ -130,11 +130,11 @@ test('the registry as committed passes every check', async () => {
   assert.deepEqual(problems, []);
   assert.equal(graphs, 10);
   const pubs = readRecord(root, 'graphs', 'pubs');
-  assert.equal(pubs.commit, '6c06c5c7395b03ff1a02c2b1a21485add3e1b65b');
+  assert.equal(pubs.commit, 'e99ca33330a043e23b2c5a665356fb8ad8d0b508');
   const sakila = readRecord(root, 'graphs', 'sakila');
   assert.deepEqual(
     [sakila.address, sakila.repository, sakila.commit, sakila.meaning_licence, sakila.model_licence],
-    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', 'cb9a81a8cbedcd8831737f281f888d5d584fae85', 'CC0-1.0', 'BSD-3-Clause'],
+    ['meaning://github.com/demo-db/sakila', 'https://github.com/demo-db/sakila', '113e54ad83c3e003a4fd195c893f2b19a921435c', 'CC0-1.0', 'BSD-3-Clause'],
   );
   assert.deepEqual(readRecord(root, 'dependencies', 'sakila--core'), {
     graph: 'sakila', depends_on: 'core', commit: '982916d73f0a35ff2558b0062f58aa3ac4f24d97',
