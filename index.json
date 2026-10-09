@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:df2ea5c1d20211a3896f7c3ba76e8f42a5124452a4a3080c9e1fdeab97b2aa55",
+  "checksum": "sha256:98c2d6d646edd2477b6896a252bea817638371080338196c423218a358410483",
   "graphs": [
     {
       "id": "adventureworks",
@@ -71,7 +71,7 @@
       "status": "draft",
       "address": "meaning://github.com/meaninggraph/core",
       "repository": "https://github.com/meaninggraph/core",
-      "commit": "1de4de09a449b9978a6155f226669e02986cb7d9",
+      "commit": "dd5ce32c4554c0833c59925bbea1e7a7e5ed01e7",
       "meaning_files": [
         "*.meaning.yaml"
       ],

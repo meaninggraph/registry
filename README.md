@@ -9,7 +9,7 @@ depends on.
 |---|---|---|---|---|
 | `adventureworks` | `meaning://github.com/demo-db/adventureworks` | [demo-db/adventureworks@5028a27](https://github.com/demo-db/adventureworks/tree/5028a27189b487d6fd8025fafc1307aada707fd2) | dataset | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@26e852c](https://github.com/demo-db/chinook/tree/26e852cca00101f53a84ef8ee1f1ae389067f5cf) | dataset | draft |
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@1de4de0](https://github.com/meaninggraph/core/tree/1de4de09a449b9978a6155f226669e02986cb7d9) | universal | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@dd5ce32](https://github.com/meaninggraph/core/tree/dd5ce32c4554c0833c59925bbea1e7a7e5ed01e7) | universal | draft |
 | `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@6751a14](https://github.com/openvaultdb/ovdb/tree/6751a14ae12bfeadbcc9a7c6aa6174c81d697e20) | dataset | draft |
 | `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@2069e26](https://github.com/demo-db/employees/tree/2069e26e8fdb60bdb16507f75569a579cf3da7cf) | dataset | draft |
 | `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@6f4cf12](https://github.com/ingitdb/geo-ingitdb/tree/6f4cf1269bc393048f6b204069135a62f0bb6c02) | dataset | draft |
