@@ -9,7 +9,7 @@ status: draft
 homepage: https://sakila.demodb.dev/model/
 address: meaning://github.com/demo-db/sakila
 repository: https://github.com/demo-db/sakila
-commit: cb9a81a8cbedcd8831737f281f888d5d584fae85
+commit: 113e54ad83c3e003a4fd195c893f2b19a921435c
 meaning_files:
   - model/sakila.meaning.yaml
 meaning_licence: CC0-1.0

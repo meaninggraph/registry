@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:e644f7272b556e7e65f9e2390bafae6d96941cb3205589e77decf185d73a7524",
+  "checksum": "sha256:3e72b8c8b206fcfdfeb012961e4a7641cdf3b6aea8b0f06608591045b3d67fbd",
   "graphs": [
     {
       "id": "adventureworks",
@@ -12,7 +12,7 @@
       "homepage": "https://demodb.dev/adventureworks/",
       "address": "meaning://github.com/demo-db/adventureworks",
       "repository": "https://github.com/demo-db/adventureworks",
-      "commit": "5028a27189b487d6fd8025fafc1307aada707fd2",
+      "commit": "c91e06e9c12380e7709f66ab1e69cf7f858f67c1",
       "meaning_files": [
         "model/adventureworks.meaning.yaml"
       ],
@@ -36,7 +36,7 @@
       "id": "chinook",
       "format": "meaning-registry/draft-1",
       "title": "Chinook music store",
-      "description": "What the Chinook sample database means: a digital music store that sells tracks to customers in 24 countries. Each concept is bound to the ModelSpec entity or property that holds it; concepts that are not specific to Chinook are reused from the core concepts.",
+      "description": "What the Chinook sample database means: a digital music store that sells tracks to customers in 24 countries. Each concept is bound to the ModelSpec record type or field that holds it; concepts that are not specific to Chinook are reused from the core concepts.",
       "kind": "dataset",
       "status": "draft",
       "homepage": "https://chinook.demodb.dev/model/",
@@ -120,7 +120,7 @@
       "homepage": "https://demodb.dev/employees/",
       "address": "meaning://github.com/demo-db/employees",
       "repository": "https://github.com/demo-db/employees",
-      "commit": "2069e26e8fdb60bdb16507f75569a579cf3da7cf",
+      "commit": "add7744ddc5cefc535a7cbb09b3dffee41811ade",
       "meaning_files": [
         "model/employees.meaning.yaml"
       ],
@@ -173,13 +173,13 @@
       "id": "northwind",
       "format": "meaning-registry/draft-1",
       "title": "Northwind small-business database",
-      "description": "What the Northwind sample business database means: customers place orders for products supplied and shipped by Northwind. Concepts bind to ModelSpec entities and properties; shared concepts reuse the pinned core graph.",
+      "description": "What the Northwind sample business database means: customers place orders for products supplied and shipped by Northwind. Concepts bind to ModelSpec record types and fields; shared concepts reuse the pinned core graph.",
       "kind": "dataset",
       "status": "draft",
       "homepage": "https://northwind.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/northwind",
       "repository": "https://github.com/demo-db/northwind",
-      "commit": "e74726515c3833620b54b7a50d1d273276dd23c1",
+      "commit": "c07b4666734a3445b2b0c2fbaf84305dcdb1bf45",
       "meaning_files": [
         "model/northwind.meaning.yaml"
       ],
@@ -209,7 +209,7 @@
       "homepage": "https://demodb.dev/pubs/",
       "address": "meaning://github.com/demo-db/pubs",
       "repository": "https://github.com/demo-db/pubs",
-      "commit": "6c06c5c7395b03ff1a02c2b1a21485add3e1b65b",
+      "commit": "e99ca33330a043e23b2c5a665356fb8ad8d0b508",
       "meaning_files": [
         "model/pubs.meaning.yaml"
       ],
@@ -268,7 +268,7 @@
       "homepage": "https://sakila.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/sakila",
       "repository": "https://github.com/demo-db/sakila",
-      "commit": "cb9a81a8cbedcd8831737f281f888d5d584fae85",
+      "commit": "113e54ad83c3e003a4fd195c893f2b19a921435c",
       "meaning_files": [
         "model/sakila.meaning.yaml"
       ],

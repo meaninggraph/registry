@@ -10,7 +10,7 @@ status: draft
 homepage: https://demodb.dev/employees/
 address: meaning://github.com/demo-db/employees
 repository: https://github.com/demo-db/employees
-commit: 2069e26e8fdb60bdb16507f75569a579cf3da7cf
+commit: add7744ddc5cefc535a7cbb09b3dffee41811ade
 meaning_files:
   - model/employees.meaning.yaml
 meaning_licence: CC-BY-SA-3.0
