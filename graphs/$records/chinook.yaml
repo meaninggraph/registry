@@ -10,7 +10,7 @@ status: draft
 homepage: https://chinook.demodb.dev/model/
 address: meaning://github.com/demo-db/chinook
 repository: https://github.com/demo-db/chinook
-commit: 26e852cca00101f53a84ef8ee1f1ae389067f5cf
+commit: 3e7bb316d8a438eb7e5930067997a4e4543a275c
 meaning_files:
   - model/chinook.meaning.yaml
 meaning_licence: CC0-1.0
