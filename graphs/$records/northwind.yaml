@@ -3,7 +3,7 @@ title: Northwind small-business database
 description: >-
   What the Northwind sample business database means: customers place orders for
   products supplied and shipped by Northwind. Concepts bind to ModelSpec
-  entities and properties; shared concepts reuse the pinned core graph.
+  record types and fields; shared concepts reuse the pinned core graph.
 kind: dataset
 status: draft
 homepage: https://northwind.demodb.dev/model/

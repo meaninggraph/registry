@@ -3,7 +3,7 @@ title: Chinook music store
 description: >-
   What the Chinook sample database means: a digital music store that sells
   tracks to customers in 24 countries. Each concept is bound to the ModelSpec
-  entity or property that holds it; concepts that are not specific to Chinook
+  record type or field that holds it; concepts that are not specific to Chinook
   are reused from the core concepts.
 kind: dataset
 status: draft
