@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:98c2d6d646edd2477b6896a252bea817638371080338196c423218a358410483",
+  "checksum": "sha256:e644f7272b556e7e65f9e2390bafae6d96941cb3205589e77decf185d73a7524",
   "graphs": [
     {
       "id": "adventureworks",
@@ -42,7 +42,7 @@
       "homepage": "https://chinook.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/chinook",
       "repository": "https://github.com/demo-db/chinook",
-      "commit": "26e852cca00101f53a84ef8ee1f1ae389067f5cf",
+      "commit": "3e7bb316d8a438eb7e5930067997a4e4543a275c",
       "meaning_files": [
         "model/chinook.meaning.yaml"
       ],
