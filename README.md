@@ -9,7 +9,7 @@ depends on.
 |---|---|---|---|---|
 | `adventureworks` | `meaning://github.com/demo-db/adventureworks` | [demo-db/adventureworks@5028a27](https://github.com/demo-db/adventureworks/tree/5028a27189b487d6fd8025fafc1307aada707fd2) | dataset | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@26e852c](https://github.com/demo-db/chinook/tree/26e852cca00101f53a84ef8ee1f1ae389067f5cf) | dataset | draft |
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@1de4de0](https://github.com/meaninggraph/core/tree/1de4de09a449b9978a6155f226669e02986cb7d9) | universal | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@dd5ce32](https://github.com/meaninggraph/core/tree/dd5ce32c4554c0833c59925bbea1e7a7e5ed01e7) | universal | draft |
 | `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@6751a14](https://github.com/openvaultdb/ovdb/tree/6751a14ae12bfeadbcc9a7c6aa6174c81d697e20) | dataset | draft |
 | `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@2069e26](https://github.com/demo-db/employees/tree/2069e26e8fdb60bdb16507f75569a579cf3da7cf) | dataset | draft |
 | `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@6f4cf12](https://github.com/ingitdb/geo-ingitdb/tree/6f4cf1269bc393048f6b204069135a62f0bb6c02) | dataset | draft |
@@ -251,7 +251,7 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
    - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
      Schema and the cross-concept rules (references resolve, `extends` joins
      compatible kinds without a cycle, ids and values are unique, bindings
-     name real ModelSpec entities and properties). A reference to another
+     name real ModelSpec record types and fields, which the earlier spelling calls entities and properties). A reference to another
      graph resolves through this registry, at the commit it pins;
    - the licence each file declares (a meaning file's `license`, or a
      `Licence:` / `SPDX-License-Identifier:` line at the top of a model file)
@@ -261,6 +261,13 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      the check does not recognise, or, without one, the one licence all its
      LICENSE files name. When that is not a single recognised licence, the
      file must declare its own;
+   - a model listed as an `.hcl` source with its `.json` twin is read in either ModelSpec
+     spelling (`record`/`field` and `1.0-draft-2`, or the earlier `entity`/`property` and
+     `1.0-draft`; one HCL file may mix them), and the twin must say what the source says, in
+     the same vocabulary. A model in the earlier spelling passes; the check prints one `note:`
+     line to standard error for each such file, naming `modelspec rewrite --write`, and its
+     exit status is not affected. A `collection`, `recordset` or `column`, or a `projection`,
+     `index` or `migration` (reserved), is refused;
    - listed files, and the models a meaning file reads, are regular files of
      the repository: no symbolic links, no `..`;
    - the dependency records are exactly the registered graphs the meaning
@@ -316,6 +323,7 @@ an unregistered graph, an unlisted model, a stale `index.json`, a graph
 commit, a pin or a checker commit that is not on the default branch, a
 checker taken from another repository, the same repository spelled with
 `.git` or in another case, a repository value shaped like a git option, a
+model in each ModelSpec spelling, a twin in the other one, a removed or reserved construct, a
 model path that leaves the repository, a symbolic link, an undeclared licence
 where the repository's default is ambiguous, and a tag lookalike. It also
 proves the cache rules: a repository planted in a `.cache` directory of the

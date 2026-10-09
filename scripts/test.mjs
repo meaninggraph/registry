@@ -85,7 +85,9 @@ function origin(name, files, { from, side, symlinks = {}, branches = [], tags = 
 }
 const urlFor = (url) => origins.get(url) ?? url;
 // Branch histories are fetched once for the whole run, not once per test.
-const seen = { fetched: new Set(), branches: new Map() };
+// The notes the check prints for the earlier ModelSpec spelling are collected here, not printed.
+const notices = [];
+const seen = { fetched: new Set(), branches: new Map(), notice: (text) => notices.push(text) };
 const check = (dir) => checkRegistry({ root: dir, urlFor, cacheDir, ...seen });
 
 const meaningFile = (extra = {}) => stringifyYaml({
@@ -384,7 +386,64 @@ test('a paired ModelSpec JSON AST must be valid, duplicate-free, and match its H
   const unsupportedHcl = `${fixtureModelHcl}\ncollection "FixtureRows" {}\n`;
   const unsupported = origin('modelspec-unsupported-hcl', fixtureModelFiles(unsupportedHcl, fixtureModelJson()));
   const unsupportedDir = registry((d) => writeRecord(d, 'graphs', 'modelspec-unsupported-hcl', baseRecord(unsupported)));
-  expectProblem((await check(unsupportedDir)).problems, /^graphs\/\$records\/modelspec-unsupported-hcl\.yaml: model\/fixture\.modelspec\.hcl cannot be converted to ModelSpec JSON: line \d+: top-level collection blocks are not supported by this converter/);
+  expectProblem((await check(unsupportedDir)).problems, /^graphs\/\$records\/modelspec-unsupported-hcl\.yaml: model\/fixture\.modelspec\.hcl cannot be converted to ModelSpec JSON: line \d+: the collection block was removed from ModelSpec \(decision 0019\)$/);
+});
+
+// A model in each spelling, with the JSON twin `modelspec export` writes for it.
+const modelFilesOf = ['model/fixture.modelspec.hcl', 'model/fixture.modelspec.json'];
+const currentModelHcl = fixtureModelHcl.replace('entity "Fixture"', 'record "Fixture"').replace('property "id"', 'field "id"');
+const mixedModelHcl = `${currentModelHcl}\nentity "Other" {\n  key = ["id"]\n  property "id" {\n    type = "string"\n  }\n  field "fixture" {\n    record = "Fixture"\n  }\n}\n`;
+const modelNotes = (id) => notices.filter((text) => text.startsWith(`note: graphs/$records/${id}.yaml: `));
+
+test('a model in the current spelling passes the whole check, with no note', async () => {
+  const source = origin('modelspec-current', fixtureModelFiles(currentModelHcl));
+  const dir = registry((d) => writeRecord(d, 'graphs', 'modelspec-current', fixtureRecord(source, { model_files: modelFilesOf, model_licence: 'BSD-3-Clause' })));
+  assert.deepEqual((await check(dir)).problems, []);
+  assert.deepEqual(modelNotes('modelspec-current'), []);
+  assert.match(fixtureModelFiles(currentModelHcl)['model/fixture.modelspec.json'], /"modelspec": "1.0-draft-2"/);
+});
+
+test('the earlier spelling passes, with one note for each model file that names modelspec rewrite --write', async () => {
+  const source = origin('modelspec-earlier', fixtureModelFiles());
+  const dir = registry((d) => writeRecord(d, 'graphs', 'modelspec-earlier', fixtureRecord(source, { model_files: modelFilesOf, model_licence: 'BSD-3-Clause' })));
+  const result = await check(dir);
+  assert.deepEqual(result.problems, []);
+  assert.deepEqual(modelNotes('modelspec-earlier'), ['model/fixture.modelspec.json', 'model/fixture.modelspec.hcl'].map((path) => `note: graphs/$records/modelspec-earlier.yaml: ${path} is in the earlier ModelSpec spelling (entity, property); run modelspec rewrite --write ${path}`));
+});
+
+test('a source that mixes the spellings passes with its earlier-vocabulary twin, and is noted once for each file', async () => {
+  const source = origin('modelspec-mixed', fixtureModelFiles(mixedModelHcl));
+  assert.match(fixtureModelFiles(mixedModelHcl)['model/fixture.modelspec.json'], /"modelspec": "1.0-draft"/);
+  const dir = registry((d) => writeRecord(d, 'graphs', 'modelspec-mixed', fixtureRecord(source, { model_files: modelFilesOf, model_licence: 'BSD-3-Clause' })));
+  assert.deepEqual((await check(dir)).problems, []);
+  assert.equal(modelNotes('modelspec-mixed').length, 2);
+});
+
+test('a source with a twin in the other vocabulary is one clear problem, in both directions', async () => {
+  const hint = /the two must be in the same vocabulary \(modelspec rewrite --write brings the pair in line\)$/;
+  const cases = [
+    ['modelspec-current-source', currentModelHcl, fixtureModelJson(), /modelspec is "1\.0-draft-2" in the HCL source but "1\.0-draft" in the JSON AST/],
+    ['modelspec-earlier-source', fixtureModelHcl, fixtureModelJson(currentModelHcl), /modelspec is "1\.0-draft" in the HCL source but "1\.0-draft-2" in the JSON AST/],
+  ];
+  for (const [id, hcl, json, difference] of cases) {
+    const source = origin(id, fixtureModelFiles(hcl, json));
+    const dir = registry((d) => writeRecord(d, 'graphs', id, fixtureRecord(source, { model_files: modelFilesOf, model_licence: 'BSD-3-Clause' })));
+    // A twin that does not match is not trusted for the licence either, so the JSON file also falls back to the
+    // repository's default licence (as for any mismatched twin); that is not about the vocabulary.
+    const problems = (await check(dir)).problems.filter((problem) => problem.startsWith(`graphs/$records/${id}.yaml:`) && !/declares no licence/.test(problem));
+    assert.equal(problems.length, 1, problems.join('\n'));
+    assert.match(problems[0], new RegExp(`^graphs/\\$records/${id}\\.yaml: model/fixture\\.modelspec\\.json does not match model/fixture\\.modelspec\\.hcl: `));
+    assert.match(problems[0], difference);
+    assert.match(problems[0], hint);
+  }
+});
+
+test('removed and reserved constructs in a model file are problems of the graph, in either spelling', async () => {
+  for (const [id, hcl, word] of [['modelspec-removed-current', `${currentModelHcl}\nrecordset "Rows" {}\n`, /the recordset block was removed/], ['modelspec-reserved-earlier', `${fixtureModelHcl}\nprojection "View" {}\n`, /the projection block is reserved by ModelSpec/]]) {
+    const source = origin(id, fixtureModelFiles(hcl, fixtureModelJson()));
+    const dir = registry((d) => writeRecord(d, 'graphs', id, fixtureRecord(source, { model_files: modelFilesOf, model_licence: 'BSD-3-Clause' })));
+    expectProblem((await check(dir)).problems, new RegExp(`^graphs/\\$records/${id}\\.yaml: model/fixture\\.modelspec\\.hcl cannot be converted to ModelSpec JSON: line \\d+: ${word.source}`));
+  }
 });
 
 test('CC-BY-SA-3.0 SPDX identifiers are recognized as repository defaults', async () => {

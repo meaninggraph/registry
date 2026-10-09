@@ -17,7 +17,7 @@ import { isAbsolute, join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devNull, tmpdir, userInfo } from 'node:os';
 import { isScalar, parse as parseYaml, parseDocument, visit } from 'yaml';
-import { astDifferences, parseHcl, parseJson, toModelspecJson, validateModel } from './modelspec.mjs';
+import { astDifferences, hclUsesEarlier, parseHcl, parseJson, toModelspecJson, validateModel, vocabularies, vocabularyOf } from './modelspec.mjs';
 import { homepageProblem } from './urls.mjs';
 
 export const registryFormat = 'meaning-registry/draft-1';
@@ -590,8 +590,10 @@ export function declaredLicence(path, text, doc) {
 // there is one (even if the check does not recognise its text); with no such
 // file, the one licence all LICENSE files name. When that is not exactly one
 // recognised licence, the file must declare its licence itself.
-function modelspecTwinProblems(file, dir, paths) {
+function modelspecTwinProblems(file, dir, paths, notice) {
   const problems = [];
+  // The earlier spelling is deprecated, not wrong: it is a note, never a problem.
+  const earlierSpelling = (path) => notice(`note: ${file}: ${path} is in the earlier ModelSpec spelling (${vocabularies.earlier.record}, ${vocabularies.earlier.field}); run modelspec rewrite --write ${path}`);
   const validHclTwins = new Set();
   for (const jsonPath of paths.filter((path) => path.endsWith('.modelspec.json'))) {
     const hclPath = `${jsonPath.slice(0, -'.json'.length)}.hcl`;
@@ -604,8 +606,10 @@ function modelspecTwinProblems(file, dir, paths) {
       problems.push(`${file}: ${jsonPath} is not a valid ModelSpec JSON AST: ${validation.join('; ')}`);
       continue;
     }
+    if (vocabularyOf(ast) === vocabularies.earlier) earlierSpelling(jsonPath);
     try {
       const hcl = parseHcl(readFileSync(join(dir, hclPath), 'utf8'));
+      if (hclUsesEarlier(hcl)) earlierSpelling(hclPath);
       const differences = astDifferences(toModelspecJson(hcl, ast.module), ast);
       if (differences.length > 0) {
         problems.push(`${file}: ${jsonPath} does not match ${hclPath}: ${differences.join('; ')}`);
@@ -643,8 +647,9 @@ function licenceProblems(file, dir, paths, expected, column, { validHclTwins = n
 
 // Fetches every graph at its commit and checks it. `urlFor` maps a repository
 // URL to the URL git fetches (tests point it at local repositories);
-// `checker` is the result of loadChecker.
-export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'graphs'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set(), branches = new Map() }) {
+// `checker` is the result of loadChecker. `notice(text)` receives the notes that are not problems (a model in
+// the earlier ModelSpec spelling); it prints them to standard error unless told otherwise.
+export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'graphs'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set(), branches = new Map(), notice = (text) => console.error(text) }) {
   const { meaning } = checker;
   const schemaPath = join(checker.dir, 'meaning.schema.json');
   const problems = [];
@@ -762,7 +767,7 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
       problems.push(...meaning.checkMeaning({ local, resolve, schemaPath, selfRepo }).map((problem) => `${file}: ${strip(problem)}`));
     }
     problems.push(...licenceProblems(file, at.dir, meaningFiles.files, data.meaning_licence, 'meaning_licence'));
-    const modelTwins = modelspecTwinProblems(file, at.dir, modelFiles.files);
+    const modelTwins = modelspecTwinProblems(file, at.dir, modelFiles.files, notice);
     problems.push(...modelTwins.problems);
     if (data.model_licence) problems.push(...licenceProblems(file, at.dir, modelFiles.files, data.model_licence, 'model_licence', { validHclTwins: modelTwins.validHclTwins }));
     // Dependencies: exactly the registered graphs the files reference, at the commits they pin.
@@ -831,7 +836,7 @@ export function indexProblems(root, registry) {
 // Nothing is checked, fetched or read from a cache when the registry tracks a
 // `.cache` directory, or when the cache directory cannot be trusted
 // (prepareCacheDir): the one problem returned says which.
-export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(), branches = new Map() } = {}) {
+export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(), branches = new Map(), notice } = {}) {
   const registry = readRegistry(root);
   try {
     const tracked = trackedCache(root);
@@ -848,6 +853,6 @@ export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(
     problems.push(`checker: ${error.message}`);
     return { problems, graphs: registry.graphs.length };
   }
-  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs'), historyDir, fetched, branches }));
+  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs'), historyDir, fetched, branches, ...(notice ? { notice } : {}) }));
   return { problems, graphs: registry.graphs.length, checker: checker.commit };
 }
