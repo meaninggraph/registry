@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:3e72b8c8b206fcfdfeb012961e4a7641cdf3b6aea8b0f06608591045b3d67fbd",
+  "checksum": "sha256:91bd89ca8d444bea4e6e950bcc8a8650f8fdc52821fa0cab836e3955e3723805",
   "graphs": [
     {
       "id": "adventureworks",
@@ -90,7 +90,7 @@
       "status": "draft",
       "address": "meaning://github.com/openvaultdb/ovdb",
       "repository": "https://github.com/openvaultdb/ovdb",
-      "commit": "6751a14ae12bfeadbcc9a7c6aa6174c81d697e20",
+      "commit": "2a444f29df25ca81ecf83739aeb2441979c12d6f",
       "meaning_files": [
         "publisher/source/model/ecb-daily.meaning.yaml"
       ],
@@ -238,7 +238,7 @@
       "status": "draft",
       "address": "meaning://github.com/ingitdb/ror-ingitdb",
       "repository": "https://github.com/ingitdb/ror-ingitdb",
-      "commit": "dc78c1e929f1f10018f8c39e690351059a50c71f",
+      "commit": "295bf52951de7f4eb1c989e4147d7c1e97145b0a",
       "meaning_files": [
         "model/ror.meaning.yaml"
       ],
