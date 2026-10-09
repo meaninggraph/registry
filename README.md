@@ -251,7 +251,7 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
    - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
      Schema and the cross-concept rules (references resolve, `extends` joins
      compatible kinds without a cycle, ids and values are unique, bindings
-     name real ModelSpec entities and properties). A reference to another
+     name real ModelSpec record types and fields, which the earlier spelling calls entities and properties). A reference to another
      graph resolves through this registry, at the commit it pins;
    - the licence each file declares (a meaning file's `license`, or a
      `Licence:` / `SPDX-License-Identifier:` line at the top of a model file)
@@ -261,6 +261,13 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      the check does not recognise, or, without one, the one licence all its
      LICENSE files name. When that is not a single recognised licence, the
      file must declare its own;
+   - a model listed as an `.hcl` source with its `.json` twin is read in either ModelSpec
+     spelling (`record`/`field` and `1.0-draft-2`, or the earlier `entity`/`property` and
+     `1.0-draft`; one HCL file may mix them), and the twin must say what the source says, in
+     the same vocabulary. A model in the earlier spelling passes; the check prints one `note:`
+     line to standard error for each such file, naming `modelspec rewrite --write`, and its
+     exit status is not affected. A `collection`, `recordset` or `column`, or a `projection`,
+     `index` or `migration` (reserved), is refused;
    - listed files, and the models a meaning file reads, are regular files of
      the repository: no symbolic links, no `..`;
    - the dependency records are exactly the registered graphs the meaning
@@ -316,6 +323,7 @@ an unregistered graph, an unlisted model, a stale `index.json`, a graph
 commit, a pin or a checker commit that is not on the default branch, a
 checker taken from another repository, the same repository spelled with
 `.git` or in another case, a repository value shaped like a git option, a
+model in each ModelSpec spelling, a twin in the other one, a removed or reserved construct, a
 model path that leaves the repository, a symbolic link, an undeclared licence
 where the repository's default is ambiguous, and a tag lookalike. It also
 proves the cache rules: a repository planted in a `.cache` directory of the
