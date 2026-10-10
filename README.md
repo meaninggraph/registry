@@ -12,7 +12,7 @@ depends on.
 | `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@dd5ce32](https://github.com/meaninggraph/core/tree/dd5ce32c4554c0833c59925bbea1e7a7e5ed01e7) | universal | draft |
 | `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@2a444f2](https://github.com/openvaultdb/ovdb/tree/2a444f29df25ca81ecf83739aeb2441979c12d6f) | dataset | draft |
 | `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@add7744](https://github.com/demo-db/employees/tree/add7744ddc5cefc535a7cbb09b3dffee41811ade) | dataset | draft |
-| `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@6f4cf12](https://github.com/ingitdb/geo-ingitdb/tree/6f4cf1269bc393048f6b204069135a62f0bb6c02) | dataset | draft |
+| `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@234401c](https://github.com/ingitdb/geo-ingitdb/tree/234401cddbf6fc3b37c6a2f57a25cf96e52119da) | dataset | draft |
 | `northwind` | `meaning://github.com/demo-db/northwind` | [demo-db/northwind@c07b466](https://github.com/demo-db/northwind/tree/c07b4666734a3445b2b0c2fbaf84305dcdb1bf45) | dataset | draft |
 | `pubs` | `meaning://github.com/demo-db/pubs` | [demo-db/pubs@e99ca33](https://github.com/demo-db/pubs/tree/e99ca33330a043e23b2c5a665356fb8ad8d0b508) | dataset | draft |
 | `ror` | `meaning://github.com/ingitdb/ror-ingitdb` | [ingitdb/ror-ingitdb@295bf52](https://github.com/ingitdb/ror-ingitdb/tree/295bf52951de7f4eb1c989e4147d7c1e97145b0a) | dataset | draft |
