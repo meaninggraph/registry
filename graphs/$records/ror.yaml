@@ -10,7 +10,7 @@ kind: dataset
 status: draft
 address: meaning://github.com/ingitdb/ror-ingitdb
 repository: https://github.com/ingitdb/ror-ingitdb
-commit: dc78c1e929f1f10018f8c39e690351059a50c71f
+commit: 295bf52951de7f4eb1c989e4147d7c1e97145b0a
 meaning_files:
   - model/ror.meaning.yaml
 meaning_licence: CC0-1.0
