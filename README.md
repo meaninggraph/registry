@@ -9,7 +9,7 @@ depends on.
 |---|---|---|---|---|
 | `adventureworks` | `meaning://github.com/demo-db/adventureworks` | [demo-db/adventureworks@c91e06e](https://github.com/demo-db/adventureworks/tree/c91e06e9c12380e7709f66ab1e69cf7f858f67c1) | dataset | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@3e7bb31](https://github.com/demo-db/chinook/tree/3e7bb316d8a438eb7e5930067997a4e4543a275c) | dataset | draft |
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@dd5ce32](https://github.com/meaninggraph/core/tree/dd5ce32c4554c0833c59925bbea1e7a7e5ed01e7) | universal | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@25242a6](https://github.com/meaninggraph/core/tree/25242a6c84d1b8d4799c718ef237944a429835ba) | universal | draft |
 | `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@2a444f2](https://github.com/openvaultdb/ovdb/tree/2a444f29df25ca81ecf83739aeb2441979c12d6f) | dataset | draft |
 | `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@add7744](https://github.com/demo-db/employees/tree/add7744ddc5cefc535a7cbb09b3dffee41811ade) | dataset | draft |
 | `geonames` | `meaning://github.com/ingitdb/geo-ingitdb` | [ingitdb/geo-ingitdb@234401c](https://github.com/ingitdb/geo-ingitdb/tree/234401cddbf6fc3b37c6a2f57a25cf96e52119da) | dataset | draft |
@@ -248,8 +248,9 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      graph pins another at;
    - every listed file exists at that commit, and every model a meaning file
      reads is listed in `model_files`;
-   - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
-     Schema and the cross-concept rules (references resolve, `extends` joins
+   - the meaning files pass the meaning checker: the JSON Schema of the format
+     the file names (`meaning/draft-1` or `meaning/draft-2`) and the
+     cross-concept rules (references resolve, `extends` joins
      compatible kinds without a cycle, ids and values are unique, bindings
      name real ModelSpec record types and fields, which the earlier spelling calls entities and properties). A reference to another
      graph resolves through this registry, at the commit it pins;
@@ -274,7 +275,8 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      files reference, at the commits they pin.
 
 The meaning checker is not copied into this repository. It is
-`scripts/lib/meaning.mjs`, with `meaning.schema.json`, of `meaninggraph/core`
+`scripts/lib/meaning.mjs`, with `meaning.schema.json` and
+`meaning.draft-2.schema.json`, of `meaninggraph/core`
 at the commit that `graphs/$records/core.yaml` registers: the check fetches
 that commit and installs its locked dependencies. That code is only ever
 taken from `https://github.com/meaninggraph/core`, and only from a commit in
