@@ -248,8 +248,9 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      graph pins another at;
    - every listed file exists at that commit, and every model a meaning file
      reads is listed in `model_files`;
-   - the meaning files pass the meaning checker: the `meaning/draft-1` JSON
-     Schema and the cross-concept rules (references resolve, `extends` joins
+   - the meaning files pass the meaning checker: the JSON Schema of the format
+     the file names (`meaning/draft-1` or `meaning/draft-2`) and the
+     cross-concept rules (references resolve, `extends` joins
      compatible kinds without a cycle, ids and values are unique, bindings
      name real ModelSpec record types and fields, which the earlier spelling calls entities and properties). A reference to another
      graph resolves through this registry, at the commit it pins;
@@ -274,7 +275,8 @@ Two layers run in CI ([`.github/workflows/check.yml`](.github/workflows/check.ym
      files reference, at the commits they pin.
 
 The meaning checker is not copied into this repository. It is
-`scripts/lib/meaning.mjs`, with `meaning.schema.json`, of `meaninggraph/core`
+`scripts/lib/meaning.mjs`, with `meaning.schema.json` and
+`meaning.draft-2.schema.json`, of `meaninggraph/core`
 at the commit that `graphs/$records/core.yaml` registers: the check fetches
 that commit and installs its locked dependencies. That code is only ever
 taken from `https://github.com/meaninggraph/core`, and only from a commit in
