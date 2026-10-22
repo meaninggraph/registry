@@ -1,0 +1,23 @@
+format: meaning-registry/draft-1
+title: Countries reference database
+description: >-
+  What the Countries reference database means: countries and territories
+  keyed by ISO 3166-1 alpha-2 code with their alpha-3 code, currency and
+  dated World Bank population, and aliases that map other datasets' country
+  spellings to them. Concepts bind to the pinned ModelSpec model and extend
+  the core country, country-code and population concepts.
+kind: dataset
+status: draft
+homepage: https://demodb.dev/countries/
+address: meaning://github.com/demo-db/countries
+repository: https://github.com/demo-db/countries
+commit: 3554140b054aaadd5b8185492b63fcdf3b360b2d
+meaning_files:
+  - model/countries.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/countries.modelspec.hcl
+  - model/countries.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok
