@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:3fbea835d4a133fd9b78eb53026da4c386629a392fa2df5ba9b22ab395dcaf3d",
+  "checksum": "sha256:ec1cd67a263dc5ed0bca0c5b0bababe0cc996770a44adaefd775280af3ef502f",
   "graphs": [
     {
       "id": "adventureworks",
@@ -91,7 +91,7 @@
       "homepage": "https://demodb.dev/countries/",
       "address": "meaning://github.com/demo-db/countries",
       "repository": "https://github.com/demo-db/countries",
-      "commit": "3554140b054aaadd5b8185492b63fcdf3b360b2d",
+      "commit": "dec4fa9798bc6118328156cd8abaf3803d0cba2f",
       "meaning_files": [
         "model/countries.meaning.yaml"
       ],
