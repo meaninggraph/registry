@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:a1daaa80209d47d5eafca6e7cdfa4a9c55135b680cd50373eab16ceeb14a03f6",
+  "checksum": "sha256:ec1cd67a263dc5ed0bca0c5b0bababe0cc996770a44adaefd775280af3ef502f",
   "graphs": [
     {
       "id": "adventureworks",
@@ -80,6 +80,36 @@
         "trakhimenok"
       ],
       "depends": []
+    },
+    {
+      "id": "countries",
+      "format": "meaning-registry/draft-1",
+      "title": "Countries reference database",
+      "description": "What the Countries reference database means: countries and territories keyed by ISO 3166-1 alpha-2 code with their alpha-3 code, currency and dated World Bank population, and aliases that map other datasets' country spellings to them. Concepts bind to the pinned ModelSpec model and extend the core country, country-code and population concepts.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://demodb.dev/countries/",
+      "address": "meaning://github.com/demo-db/countries",
+      "repository": "https://github.com/demo-db/countries",
+      "commit": "dec4fa9798bc6118328156cd8abaf3803d0cba2f",
+      "meaning_files": [
+        "model/countries.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/countries.modelspec.hcl",
+        "model/countries.modelspec.json"
+      ],
+      "model_licence": "CC0-1.0",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
     },
     {
       "id": "ecb-daily",
