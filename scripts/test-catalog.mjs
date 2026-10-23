@@ -1,8 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {cpSync,mkdtempSync,mkdirSync,rmSync,writeFileSync,readFileSync,existsSync,unlinkSync} from 'node:fs';
+import {cpSync,mkdtempSync,mkdirSync,rmSync,writeFileSync,readFileSync,existsSync,unlinkSync,readdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join,dirname} from 'node:path';
+import {join,dirname,relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {buildIndex,readRegistry,setGitProtocols} from './lib/registry.mjs';
@@ -29,6 +29,11 @@ function setup(t) {
 }
 function reindex(root){writeFileSync(join(root,'index.json'),buildIndex(readRegistry(root)));}
 function copyHistory(from,to){for(const top of ['artifacts','definitions','revisions'])cpSync(join(from,top),join(to,top),{recursive:true,force:true});}
+function fileSnapshot(root){
+ const files=[];
+ const walk=dir=>{for(const entry of readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){const path=join(dir,entry.name);if(entry.isDirectory())walk(path);else files.push([relative(root,path).split('\\').join('/'),sha256(readFileSync(path))]);}};
+ walk(root);return files;
+}
 function otherRecord(base,commit){return base.replace('Chinook music store','Other music model').replace('modelspec://github.com/demo-db/chinook/chinook','modelspec://github.com/demo-db/other/other').replace('https://github.com/demo-db/chinook','https://github.com/demo-db/other').replace(`commit: ${A}`,`commit: ${commit}`).replace('module: chinook','module: other').replace('model/chinook.modelspec.hcl','model/other.modelspec.hcl').replace('model/chinook.modelspec.json','model/other.modelspec.json');}
 function addLock(root,{commit,targetCommit}){writeFileSync(join(root,'model_dependencies/$records/chinook--other.yaml'),`model: chinook\ncommit: ${commit}\nalias: other\ntarget_model: other\ntarget_commit: ${targetCommit}\n`);}
 
@@ -111,6 +116,19 @@ test('late build failure removes staging output without exposing destination',as
  const checkModels=()=>{throw new Error('deliberate late fixture failure');};
  await assert.rejects(buildCatalog({...f,fixture:true,checkMeanings:false,checkModels}),/deliberate late fixture failure/);
  assert.equal(existsSync(f.output),false);
+});
+
+test('failed later generation leaves the successful output byte-identical and publishes no new output',async t=>{
+ const f=setup(t),generationA=join(f.root,'generation-A'),generationB=join(f.root,'generation-B');
+ await buildCatalog({...f,output:generationA,fixture:true,checkMeanings:false});
+ const before=fileSnapshot(generationA);
+ await assert.rejects(buildCatalog({...f,output:generationA,fixture:true,checkMeanings:false}),/staging output already exists/);
+ assert.deepEqual(fileSnapshot(generationA),before);
+ mkdirSync(join(f.root,'imports'),{recursive:true});
+ writeFileSync(join(f.root,'imports/modelspec-registry.json'),JSON.stringify({format:'meaninggraph-import-source/v1',repository:'https://github.com/modelspec-org/registry',commit:'6e954755ee79b758213911dc2d97687808ed0f84',records:{chinook:{path:'models/$records/chinook.yaml',sha256:'0'.repeat(64)}}})+'\n');
+ await assert.rejects(buildCatalog({...f,output:generationB,fixture:true,checkMeanings:false}),/unverified original model registry record/);
+ assert.equal(existsSync(generationB),false);
+ assert.deepEqual(fileSnapshot(generationA),before);
 });
 
 test('COPYING licence text is retained byte-for-byte as a source artifact',async t=>{
@@ -364,6 +382,46 @@ test('model-only and mixed catalog paths preserve the same authoritative full-la
  assert.equal(rootAST.components.Billing.fields.address.component,'common.Address');
  assert.equal(rootAST.records.Order.fields.status.max_len,16);
  assert.deepEqual(commonAST.enums.Status.values,['open','closed']);
+});
+
+test('adding and removing a meaning binding leaves selected model identities and source bytes unchanged',async t=>{
+ const f=setup(t),publisher=makePublisher(f.root),load=setMixedRegistry(f,publisher),checker=await trustedMixedChecker();
+ const graphPath=join(f.root,'graphs/$records/fixture.yaml'),graphRecord=readFileSync(graphPath);
+ const {checkModels:_discard,...base}=f;
+ const modelsIn=output=>{
+  const result=output.result;
+  return result.models.map(model=>{
+   const revision=result.revisions.find(item=>item.kind==='model'&&item.registry_id===model.id&&item.commit===model.commit);
+   assert.ok(revision,`selected revision for ${model.id}`);
+   return {id:revision.id,address:revision.address,commit:revision.commit,module:revision.module,files:revision.files.map(file=>[file.path,readFileSync(join(output.path,file.artifactPath))])};
+  }).sort((a,b)=>a.id.localeCompare(b.id));
+ };
+ const build=async name=>{
+  const path=join(f.root,name),result=await buildCatalog({...base,output:path,...load,fixture:true,modelChecker:checker});
+  return {path,result};
+ };
+ unlinkSync(graphPath);reindex(f.root);
+ const standalone=await build('generation-model-only');
+ assert.deepEqual(standalone.result.graphs,[]);
+ assert.equal(standalone.result.models.length,2);
+ const originalModels=modelsIn(standalone);
+ copyHistory(standalone.path,f.root);
+
+ writeFileSync(graphPath,graphRecord);reindex(f.root);
+ const enriched=await build('generation-enriched');
+ assert.deepEqual(enriched.result.graphs.map(graph=>graph.id),['fixture']);
+ assert.equal(enriched.result.models.length,2);
+ assert.deepEqual(modelsIn(enriched),originalModels);
+ const graphRevision=enriched.result.revisions.find(item=>item.kind==='meaning'&&item.registry_id==='fixture');
+ const graphDefinition=JSON.parse(readFileSync(join(enriched.path,graphRevision.definition.path),'utf8'));
+ assert.deepEqual(graphDefinition.documents[0].document.concepts[0].bindings,[{model:'modelspec:///root.Order',role:'instances'}]);
+ copyHistory(enriched.path,f.root);
+
+ unlinkSync(graphPath);reindex(f.root);
+ const removed=await build('generation-removed');
+ assert.deepEqual(removed.result.graphs,[]);
+ assert.equal(removed.result.models.length,2);
+ assert.deepEqual(modelsIn(removed),originalModels);
 });
 
 test('mixed-model checker rejects invalid component-supplied keys, mismatched twins, and missing locks',async t=>{
