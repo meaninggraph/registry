@@ -1,0 +1,14 @@
+{
+  "format": "meaninggraph-tools/v1",
+  "meaning": {
+    "repository": "https://github.com/meaninggraph/core",
+    "commit": "6f0d183e82403112d079b33690a7e410a90b882c",
+    "entrypoint": "scripts/lib/meaning.mjs"
+  },
+  "model": {
+    "repository": "https://github.com/modelspec-org/cli",
+    "commit": "21c631470d1564b17eb7d68e63e7d052f54291c6",
+    "moduleVersion": "v0.3.0",
+    "profile": "default"
+  }
+}

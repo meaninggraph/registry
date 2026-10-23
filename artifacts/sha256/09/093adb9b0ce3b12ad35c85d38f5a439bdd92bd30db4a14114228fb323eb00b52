@@ -1,0 +1,394 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "github.com/demo-db/northwind/northwind",
+    "name": "northwind",
+    "version": "0.1.0"
+  },
+  "records": {
+    "Categories": {
+      "key": [
+        "CategoryID"
+      ],
+      "fields": {
+        "CategoryID": {
+          "required": true,
+          "type": "int"
+        },
+        "CategoryName": {
+          "type": "string"
+        },
+        "Description": {
+          "type": "string"
+        },
+        "Picture": {
+          "type": "document"
+        }
+      }
+    },
+    "CustomerCustomerDemo": {
+      "key": [
+        "CustomerID",
+        "CustomerTypeID"
+      ],
+      "fields": {
+        "CustomerID": {
+          "required": true,
+          "record": "Customers"
+        },
+        "CustomerTypeID": {
+          "required": true,
+          "record": "CustomerDemographics"
+        }
+      }
+    },
+    "CustomerDemographics": {
+      "key": [
+        "CustomerTypeID"
+      ],
+      "fields": {
+        "CustomerTypeID": {
+          "required": true,
+          "type": "string"
+        },
+        "CustomerDesc": {
+          "type": "string"
+        }
+      }
+    },
+    "Customers": {
+      "key": [
+        "CustomerID"
+      ],
+      "fields": {
+        "CustomerID": {
+          "required": true,
+          "type": "string"
+        },
+        "CompanyName": {
+          "type": "string"
+        },
+        "ContactName": {
+          "type": "string"
+        },
+        "ContactTitle": {
+          "type": "string"
+        },
+        "Address": {
+          "type": "string"
+        },
+        "City": {
+          "type": "string"
+        },
+        "Region": {
+          "type": "string"
+        },
+        "PostalCode": {
+          "type": "string"
+        },
+        "Country": {
+          "type": "string"
+        },
+        "Phone": {
+          "type": "string"
+        },
+        "Fax": {
+          "type": "string"
+        }
+      }
+    },
+    "EmployeeTerritories": {
+      "key": [
+        "EmployeeID",
+        "TerritoryID"
+      ],
+      "fields": {
+        "EmployeeID": {
+          "required": true,
+          "record": "Employees"
+        },
+        "TerritoryID": {
+          "required": true,
+          "record": "Territories"
+        }
+      }
+    },
+    "Employees": {
+      "key": [
+        "EmployeeID"
+      ],
+      "fields": {
+        "EmployeeID": {
+          "required": true,
+          "type": "int"
+        },
+        "LastName": {
+          "type": "string"
+        },
+        "FirstName": {
+          "type": "string"
+        },
+        "Title": {
+          "type": "string"
+        },
+        "TitleOfCourtesy": {
+          "type": "string"
+        },
+        "BirthDate": {
+          "type": "date"
+        },
+        "HireDate": {
+          "type": "date"
+        },
+        "Address": {
+          "type": "string"
+        },
+        "City": {
+          "type": "string"
+        },
+        "Region": {
+          "type": "string"
+        },
+        "PostalCode": {
+          "type": "string"
+        },
+        "Country": {
+          "type": "string"
+        },
+        "HomePhone": {
+          "type": "string"
+        },
+        "Extension": {
+          "type": "string"
+        },
+        "Photo": {
+          "type": "document"
+        },
+        "Notes": {
+          "type": "string"
+        },
+        "ReportsTo": {
+          "record": "Employees"
+        },
+        "PhotoPath": {
+          "type": "string"
+        }
+      }
+    },
+    "OrderDetails": {
+      "key": [
+        "OrderID",
+        "ProductID"
+      ],
+      "fields": {
+        "OrderID": {
+          "required": true,
+          "record": "Orders"
+        },
+        "ProductID": {
+          "required": true,
+          "record": "Products"
+        },
+        "UnitPrice": {
+          "required": true,
+          "type": "decimal"
+        },
+        "Quantity": {
+          "required": true,
+          "type": "int"
+        },
+        "Discount": {
+          "required": true,
+          "type": "decimal"
+        }
+      }
+    },
+    "Orders": {
+      "key": [
+        "OrderID"
+      ],
+      "fields": {
+        "OrderID": {
+          "required": true,
+          "type": "int"
+        },
+        "CustomerID": {
+          "record": "Customers"
+        },
+        "EmployeeID": {
+          "record": "Employees"
+        },
+        "OrderDate": {
+          "type": "datetime"
+        },
+        "RequiredDate": {
+          "type": "datetime"
+        },
+        "ShippedDate": {
+          "type": "datetime"
+        },
+        "ShipVia": {
+          "record": "Shippers"
+        },
+        "Freight": {
+          "type": "decimal"
+        },
+        "ShipName": {
+          "type": "string"
+        },
+        "ShipAddress": {
+          "type": "string"
+        },
+        "ShipCity": {
+          "type": "string"
+        },
+        "ShipRegion": {
+          "type": "string"
+        },
+        "ShipPostalCode": {
+          "type": "string"
+        },
+        "ShipCountry": {
+          "type": "string"
+        }
+      }
+    },
+    "Products": {
+      "key": [
+        "ProductID"
+      ],
+      "fields": {
+        "ProductID": {
+          "required": true,
+          "type": "int"
+        },
+        "ProductName": {
+          "required": true,
+          "type": "string"
+        },
+        "SupplierID": {
+          "record": "Suppliers"
+        },
+        "CategoryID": {
+          "record": "Categories"
+        },
+        "QuantityPerUnit": {
+          "type": "string"
+        },
+        "UnitPrice": {
+          "type": "decimal"
+        },
+        "UnitsInStock": {
+          "type": "int"
+        },
+        "UnitsOnOrder": {
+          "type": "int"
+        },
+        "ReorderLevel": {
+          "type": "int"
+        },
+        "Discontinued": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "Regions": {
+      "key": [
+        "RegionID"
+      ],
+      "fields": {
+        "RegionID": {
+          "required": true,
+          "type": "int"
+        },
+        "RegionDescription": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "Shippers": {
+      "key": [
+        "ShipperID"
+      ],
+      "fields": {
+        "ShipperID": {
+          "required": true,
+          "type": "int"
+        },
+        "CompanyName": {
+          "required": true,
+          "type": "string"
+        },
+        "Phone": {
+          "type": "string"
+        }
+      }
+    },
+    "Suppliers": {
+      "key": [
+        "SupplierID"
+      ],
+      "fields": {
+        "SupplierID": {
+          "required": true,
+          "type": "int"
+        },
+        "CompanyName": {
+          "required": true,
+          "type": "string"
+        },
+        "ContactName": {
+          "type": "string"
+        },
+        "ContactTitle": {
+          "type": "string"
+        },
+        "Address": {
+          "type": "string"
+        },
+        "City": {
+          "type": "string"
+        },
+        "Region": {
+          "type": "string"
+        },
+        "PostalCode": {
+          "type": "string"
+        },
+        "Country": {
+          "type": "string"
+        },
+        "Phone": {
+          "type": "string"
+        },
+        "Fax": {
+          "type": "string"
+        },
+        "HomePage": {
+          "type": "string"
+        }
+      }
+    },
+    "Territories": {
+      "key": [
+        "TerritoryID"
+      ],
+      "fields": {
+        "TerritoryID": {
+          "required": true,
+          "type": "string"
+        },
+        "TerritoryDescription": {
+          "required": true,
+          "type": "string"
+        },
+        "RegionID": {
+          "required": true,
+          "record": "Regions"
+        }
+      }
+    }
+  }
+}

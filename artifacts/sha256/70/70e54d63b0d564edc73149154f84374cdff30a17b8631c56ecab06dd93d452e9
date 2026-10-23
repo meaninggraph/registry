@@ -1,0 +1,60 @@
+format: meaning/draft-1
+id: ror
+name: Research Organization Registry source projection
+description: >-
+  Full ROR schema 2 records with native URL identity and all statuses.
+  Locations and relationships are ordered physical projections of their source
+  arrays, not extra logical public recordsets. Source bindings do not authorize
+  any user identifier mapping or name-to-identity matching.
+license: CC0-1.0
+models:
+  ror: ror.modelspec.hcl
+sources:
+  - id: ror-v2-13
+    provider: Research Organization Registry
+    dataset: ROR data release v2.13
+    title: ROR schema 2 JSON release dated 2026-09-22
+    license: CC0-1.0
+    url: https://zenodo.org/records/22902037
+    note: Embedded GeoNames location data is CC-BY-4.0; source/ror-v2.13.json pins archive and JSON member bytes.
+concepts:
+  - id: research-organization
+    kind: entity
+    extends: meaning://github.com/meaninggraph/core/organization?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97
+    labels:
+      en: Research organization
+    description: >-
+      An organization represented by ROR. This is a source-local organization
+      role; it does not establish legal entity or LEI equivalence. All source
+      statuses are retained. Native identifier URLs are byte-exact source keys.
+    bindings:
+      - model: modelspec:///ror.organizations
+        role: entity
+      - model: modelspec:///ror.organizations
+        property: id
+        role: identifier
+      - model: modelspec:///ror.locations
+        property: organization_id
+        role: foreign-key
+      - model: modelspec:///ror.relationships
+        property: organization_id
+        role: foreign-key
+      - model: modelspec:///ror.relationships
+        property: id
+        role: foreign-key
+        note: Source-declared relationship target; missing targets remain exceptions, not fabricated organizations.
+  - id: geonames-feature-reference
+    kind: attribute
+    of: research-organization
+    labels:
+      en: GeoNames feature reference
+    description: >-
+      Source-declared locations.geonames_id in the GeoNames geonameid namespace.
+      Many organization locations can reference zero or one feature each; an
+      organization may have multiple locations. This does not classify every
+      feature as a city or establish a user geocoder. Retain nulls and ordinals.
+    bindings:
+      - model: modelspec:///ror.locations
+        property: geonames_id
+        role: value
+        note: Accepted source-public reference; independent GeoNames closure report retains absent upstream targets.

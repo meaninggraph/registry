@@ -1,0 +1,26 @@
+titles:
+  en: Exact logical model module locks
+record_file:
+  name: '{key}.yaml'
+  format: yaml
+  type: map[string]any
+columns:
+  model:
+    type: string
+    required: true
+    foreign_key: models
+  commit:
+    type: string
+    required: true
+    length: 40
+  alias:
+    type: string
+    required: true
+  target_model:
+    type: string
+    required: true
+    foreign_key: models
+  target_commit:
+    type: string
+    required: true
+    length: 40

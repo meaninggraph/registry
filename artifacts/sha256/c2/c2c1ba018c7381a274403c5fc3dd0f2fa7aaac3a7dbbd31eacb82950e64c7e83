@@ -1,0 +1,177 @@
+{
+  "format": "meaning/draft-1",
+  "id": "pubs",
+  "name": "Pubs",
+  "description": "Authors, books, publishers, retail stores, employees, and publishing sales in the classic Microsoft Pubs sample.",
+  "license": "CC0-1.0",
+  "models": {
+    "pubs": "pubs.modelspec.hcl"
+  },
+  "concepts": [
+    {
+      "id": "author",
+      "kind": "entity",
+      "description": "A person who wrote or co-wrote a Pubs publication.",
+      "labels": {
+        "en": "Author"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/person?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.authors",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///pubs.titleauthor",
+          "role": "foreign-key",
+          "property": "au_id"
+        }
+      ]
+    },
+    {
+      "id": "publisher",
+      "kind": "entity",
+      "description": "An organization that publishes books and other titles.",
+      "labels": {
+        "en": "Publisher"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/organization?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.publishers",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///pubs.titles",
+          "role": "foreign-key",
+          "property": "pub_id"
+        },
+        {
+          "model": "modelspec:///pubs.pub_info",
+          "role": "foreign-key",
+          "property": "pub_id"
+        },
+        {
+          "model": "modelspec:///pubs.employee",
+          "role": "foreign-key",
+          "property": "pub_id"
+        }
+      ]
+    },
+    {
+      "id": "book",
+      "kind": "entity",
+      "description": "A publication listed in the Pubs title catalogue.",
+      "labels": {
+        "en": "Book"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.titles",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///pubs.titleauthor",
+          "role": "foreign-key",
+          "property": "title_id"
+        },
+        {
+          "model": "modelspec:///pubs.sales",
+          "role": "foreign-key",
+          "property": "title_id"
+        },
+        {
+          "model": "modelspec:///pubs.roysched",
+          "role": "foreign-key",
+          "property": "title_id"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "kind": "entity",
+      "description": "A retail location that sells publications.",
+      "labels": {
+        "en": "Store"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.stores",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///pubs.sales",
+          "role": "foreign-key",
+          "property": "stor_id"
+        },
+        {
+          "model": "modelspec:///pubs.discounts",
+          "role": "foreign-key",
+          "property": "stor_id"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "kind": "entity",
+      "description": "An employee assigned to a Pubs publisher.",
+      "labels": {
+        "en": "Employee"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/employee?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.employee",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "sale",
+      "kind": "entity",
+      "description": "A completed store sale of one publication, with quantity, date, and payment terms.",
+      "labels": {
+        "en": "Sale"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.sales",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "sale-quantity",
+      "kind": "attribute",
+      "description": "The number of copies of a title in one recorded sale row.",
+      "labels": {
+        "en": "Sale quantity"
+      },
+      "of": "sale",
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.sales",
+          "role": "value",
+          "property": "qty"
+        }
+      ]
+    },
+    {
+      "id": "book-price",
+      "kind": "attribute",
+      "description": "The list price recorded for a publication in the catalogue.",
+      "labels": {
+        "en": "Book price"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/price?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "of": "book",
+      "bindings": [
+        {
+          "model": "modelspec:///pubs.titles",
+          "role": "value",
+          "property": "price"
+        }
+      ]
+    }
+  ]
+}

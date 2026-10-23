@@ -1,0 +1,80 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "github.com/ingitdb/ror-ingitdb/model/ror",
+    "name": "ror",
+    "version": "0.1.0"
+  },
+  "records": {
+    "organizations": {
+      "key": [
+        "id"
+      ],
+      "fields": {
+        "id": {
+          "type": "string",
+          "required": true
+        },
+        "status": {
+          "type": "string",
+          "required": true
+        },
+        "raw_json": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "locations": {
+      "key": [
+        "organization_id",
+        "ordinal"
+      ],
+      "fields": {
+        "organization_id": {
+          "record": "organizations",
+          "required": true
+        },
+        "ordinal": {
+          "type": "int",
+          "required": true
+        },
+        "geonames_id": {
+          "type": "int"
+        },
+        "geonames_details_json": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "relationships": {
+      "key": [
+        "organization_id",
+        "ordinal"
+      ],
+      "fields": {
+        "organization_id": {
+          "record": "organizations",
+          "required": true
+        },
+        "ordinal": {
+          "type": "int",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "id": {
+          "record": "organizations",
+          "required": true
+        },
+        "label": {
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  }
+}

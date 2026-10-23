@@ -1,0 +1,13 @@
+SPDX-License-Identifier: CC-BY-SA-3.0
+
+This Employees browser-edition database, its source-derived data, and its
+associated derived schema/model metadata are licensed under the Creative
+Commons Attribution-ShareAlike 3.0 Unported License.
+
+The upstream source header credits MySQL AB (2007/2008), Fusheng Wang and
+Carlo Zaniolo (original data), Giuseppe Maxia (current schema), and Patrick
+Crews (XML-to-relational conversion), and states that the sample is licensed
+under CC BY-SA 3.0 Unported. The upstream data is described as fabricated.
+
+The full license legal code is available at:
+https://creativecommons.org/licenses/by-sa/3.0/legalcode
