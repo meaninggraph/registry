@@ -1,0 +1,94 @@
+format: meaning/draft-1
+id: ecb-daily
+name: ECB daily euro foreign exchange reference quotes
+description: >-
+  Authored preparatory meanings for the native time, currency and rate strings
+  extracted from the ECB daily XML resource. EUR is explicit base context;
+  this metadata adds no EUR row, publication instant, historical lookup,
+  reciprocal or cross-rate. Source activation and paid applicability are blocked.
+license: CC0-1.0
+models:
+  ecb: ecb-daily.modelspec.hcl
+sources:
+  - id: ecb-daily
+    provider: European Central Bank
+    dataset: Euro foreign exchange reference rates daily XML
+    url: https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
+    note: >-
+      Source rates are subject to ECB reuse conditions at
+      https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html.
+      CC0 applies only to authored meaning/model metadata, not rates or ECB
+      documents. No source rows, XML, snapshot or terms body are retained here.
+concepts:
+  - id: ecb-fx-reference-quote
+    kind: entity
+    extends: meaning://github.com/meaninggraph/core/fx-reference-quote?ref=1de4de09a449b9978a6155f226669e02986cb7d9
+    labels:
+      en: ECB daily reference quote
+    description: >-
+      One quote currency on one returned reference date under ECB methodology,
+      directed as quote-currency units per one EUR. The pair (time, currency)
+      is unique within one response, not an immutable cross-read identity or
+      supported point-read key. The adapter's currency locator is scoped to
+      that transient response. Publication may be amended; a read observation
+      identity distinguishes consumed responses. Registration admits no execution.
+    source: ecb-daily
+    bindings:
+      - model: modelspec:///ecb.FxReferenceQuote
+        role: entity
+  - id: ecb-reference-date
+    kind: attribute
+    of: ecb-fx-reference-quote
+    extends: meaning://github.com/meaninggraph/core/fx-reference-date?ref=1de4de09a449b9978a6155f226669e02986cb7d9
+    labels:
+      en: ECB reference date
+    description: >-
+      Native Cube.time as a validated Gregorian YYYY-MM-DD calendar date,
+      without a time zone or midnight timestamp. Neither publication nor fetch
+      time. A different requested date is unavailable, not the latest day.
+    bindings:
+      - model: modelspec:///ecb.FxReferenceQuote
+        property: time
+        role: value
+  - id: ecb-base-currency
+    kind: attribute
+    of: ecb-fx-reference-quote
+    extends: meaning://github.com/meaninggraph/core/fx-base-currency?ref=1de4de09a449b9978a6155f226669e02986cb7d9
+    labels:
+      en: ECB base currency
+    description: >-
+      EUR is a constant of this source definition and quote direction. It is
+      not a native row field, not a quote of rate one and has no field binding.
+  - id: ecb-quote-currency
+    kind: attribute
+    of: ecb-fx-reference-quote
+    extends: meaning://github.com/meaninggraph/core/fx-quote-currency?ref=1de4de09a449b9978a6155f226669e02986cb7d9
+    labels:
+      en: ECB quote currency
+    description: >-
+      Native uppercase currency code in the returned daily publication, naming
+      a currency. No country, tender interval, successor or transaction role
+      is inferred. The core currency starter values are not a complete ECB
+      code allowlist. An absent quote stays unavailable, never zero or one.
+    bindings:
+      - model: modelspec:///ecb.FxReferenceQuote
+        property: currency
+        role: value
+        note: Native code; no complete core-value coverage or country-identity claim.
+  - id: ecb-indicative-reference-rate
+    kind: attribute
+    of: ecb-fx-reference-quote
+    extends: meaning://github.com/meaninggraph/core/indicative-fx-reference-rate?ref=1de4de09a449b9978a6155f226669e02986cb7d9
+    labels:
+      en: ECB indicative reference rate
+    description: >-
+      Native positive decimal lexical string of quote-currency units per one
+      EUR, with every supplied digit and trailing zero preserved. No binary
+      float, fixed scale, reciprocal, cross-rate, conversion, daily average,
+      closing or transaction-price equivalence. Exact-decimal transformations
+      need separate admission and rounding/notice evidence. ECB rates are for
+      information; the ECB discourages transaction use.
+    bindings:
+      - model: modelspec:///ecb.FxReferenceQuote
+        property: rate
+        role: value

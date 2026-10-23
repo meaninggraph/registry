@@ -1,0 +1,43 @@
+{
+  "format": "meaninggraph-import-source/v1",
+  "repository": "https://github.com/modelspec-org/registry",
+  "commit": "6e954755ee79b758213911dc2d97687808ed0f84",
+  "records": {
+    "adventureworks": {
+      "path": "models/$records/adventureworks.yaml",
+      "sha256": "b9d928daf9177ade5a14c8805c6eef3cccb62d31d28e3d1bb20de29dad6563c2"
+    },
+    "chinook": {
+      "path": "models/$records/chinook.yaml",
+      "sha256": "4d10addc6a9df9e70ea4d1258083398795bbcf467004895497b91c3d2170f5be"
+    },
+    "ecb-daily": {
+      "path": "models/$records/ecb-daily.yaml",
+      "sha256": "c74e66629633395e0b27190b616dbb2a9ebdaf783e98741c6947940646fd8188"
+    },
+    "employees": {
+      "path": "models/$records/employees.yaml",
+      "sha256": "5a2bbb2f1980c7ff25cb381737692be3bfdd8ab492f0ae91314e053ebd5f45bb"
+    },
+    "geonames": {
+      "path": "models/$records/geonames.yaml",
+      "sha256": "651ff3c1f7a6be0883c10dd8b1f183bb6f68398ff3786f06a8174d4177afdc55"
+    },
+    "northwind": {
+      "path": "models/$records/northwind.yaml",
+      "sha256": "12e479718a005b8f00802e5ccf2eb1bc07dfe6eb847243415f9c14fee2c13818"
+    },
+    "pubs": {
+      "path": "models/$records/pubs.yaml",
+      "sha256": "19d3ce4db9b996fc35267c18dcf0045cab5dc43b419d21fa3497d57bcabf5628"
+    },
+    "ror": {
+      "path": "models/$records/ror.yaml",
+      "sha256": "54005c75a227c1228694b6ca59561cb1655ad1cc7d3e93361d316f3ed473d87e"
+    },
+    "sakila": {
+      "path": "models/$records/sakila.yaml",
+      "sha256": "fffea1d50a0c6e2c43d8167608c6aeb3229eda438f4dfe5736cfdaa72a8a1f95"
+    }
+  }
+}

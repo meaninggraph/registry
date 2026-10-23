@@ -1,0 +1,129 @@
+{
+  "format": "meaning/draft-1",
+  "id": "countries",
+  "name": "Countries",
+  "description": "What the Countries reference database means: countries keyed by ISO 3166-1 code with their currency and dated population, and aliases that map other datasets' country spellings to them. Concepts extend the core country, country-code and population concepts.",
+  "license": "CC0-1.0",
+  "models": {
+    "countries": "countries.modelspec.hcl"
+  },
+  "sources": [
+    {
+      "id": "world-bank-sp-pop-totl",
+      "provider": "The World Bank",
+      "dataset": "World Development Indicators SP.POP.TOTL",
+      "title": "Population, total",
+      "license": "CC-BY-4.0",
+      "url": "https://data.worldbank.org/indicator/SP.POP.TOTL"
+    }
+  ],
+  "concepts": [
+    {
+      "id": "country",
+      "kind": "entity",
+      "description": "A country or territory in this database, keyed by its ISO 3166-1 alpha-2 code.",
+      "labels": {
+        "en": "Country"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/country?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "identifier",
+          "property": "iso2"
+        },
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "display-name",
+          "property": "name",
+          "match": "labels"
+        },
+        {
+          "model": "modelspec:///countries.country_aliases",
+          "role": "foreign-key",
+          "property": "country_iso2"
+        }
+      ]
+    },
+    {
+      "id": "country-alpha3",
+      "kind": "attribute",
+      "description": "The country's ISO 3166-1 alpha-3 code.",
+      "labels": {
+        "en": "ISO alpha-3 code"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/country-code?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "of": "country",
+      "bindings": [
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "value",
+          "property": "iso3",
+          "match": "codes.alpha3"
+        }
+      ]
+    },
+    {
+      "id": "country-currency",
+      "kind": "attribute",
+      "description": "The ISO 4217 code of the currency GeoNames lists for the country.",
+      "labels": {
+        "en": "Country currency"
+      },
+      "of": "country",
+      "bindings": [
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "value",
+          "property": "currency_code"
+        }
+      ]
+    },
+    {
+      "id": "country-population",
+      "kind": "measure",
+      "description": "The World Bank total population of the country in population_year.",
+      "labels": {
+        "en": "Country population"
+      },
+      "unit": "people",
+      "source": "world-bank-sp-pop-totl",
+      "extends": "meaning://github.com/meaninggraph/core/population?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "of": "country",
+      "measure": {
+        "formula": "The World Bank SP.POP.TOTL value for the country in population_year.",
+        "aggregation": "none"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///countries.countries",
+          "role": "value",
+          "property": "population"
+        }
+      ]
+    },
+    {
+      "id": "country-alias",
+      "kind": "entity",
+      "description": "A spelling another dataset uses for a country, mapped to that country.",
+      "labels": {
+        "en": "Country alias"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///countries.country_aliases",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///countries.country_aliases",
+          "role": "identifier",
+          "property": "alias"
+        }
+      ]
+    }
+  ]
+}

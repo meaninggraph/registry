@@ -1,28 +1,20 @@
-// Checks the registry, CC0-1.0 like everything else here.
-//
-//   node scripts/check.mjs [registry directory]   (default: this repository)
-//
-// Run after `ingitdb validate` (structure, types, required columns, enums,
-// foreign keys). This adds the meaning checks: ids and commit ids are well
-// formed, every address is the meaning:// form of its repository and is
-// registered once, index.json matches the records, and each graph, fetched at
-// its commit (which must be in the history of the repository's default branch,
-// not a commit only a fork has), has the files the entry lists, passes the meaning checker of
-// meaninggraph/core (taken at the commit of the `core` record), declares the
-// licences the entry states, and pins exactly the dependencies the entry lists.
-//
-// The fetched repositories are cached outside the registry, in a directory of
-// the user's own (defaultCacheDir in lib/registry.mjs), and a registry that
-// tracks a `.cache` directory is refused before anything is fetched.
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { checkRegistry } from './lib/registry.mjs';
+// Validate both resource families through the native builder into a private
+// disposable staging tree. No output is installed or activated.
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {dirname,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {buildCatalog,buildModelChecker} from './lib/catalog.mjs';
 
-const root = process.argv[2] ?? dirname(dirname(fileURLToPath(import.meta.url)));
-const { problems, graphs, checker } = await checkRegistry({ root });
-if (problems.length > 0) {
-  for (const problem of problems) console.error(`error: ${problem}`);
-  console.error(`${problems.length} problem${problems.length === 1 ? '' : 's'} in ${graphs} graph${graphs === 1 ? '' : 's'}`);
-  process.exit(1);
+const root=process.argv[2]??dirname(dirname(fileURLToPath(import.meta.url)));
+const scratch=await mkdtemp(join(tmpdir(),'meaninggraph-check-'));
+let modelChecker;
+try {
+  modelChecker=await buildModelChecker(root);
+  const checked=await buildCatalog({root,output:join(scratch,'catalog'),modelChecker});
+  console.log(`ok: ${checked.models.length} DataModels, ${checked.graphs.length} meaning graphs, ${checked.revisions.length} revisions; committed input snapshot verified`);
+}catch(error){console.error(`error: ${error.message}`);process.exitCode=1;}
+finally {
+  await rm(scratch,{recursive:true,force:true});
+  if(modelChecker)await rm(dirname(modelChecker),{recursive:true,force:true});
 }
-console.log(`ok: ${graphs} graphs checked with the meaning checker of meaninggraph/core at ${checker}`);

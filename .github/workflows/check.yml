@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Validate the inGitDB database
         uses: ingitdb/ingitdb-action@ec621991c6ca57d45a252c7d140eea1624f42ab9 # main, 2026-08-31 (the action has no release tag for it)
         with:
@@ -39,6 +40,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Set up the pinned reference validator toolchain
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: tools/modelcheck/go.mod
+          cache-dependency-path: tools/modelcheck/go.sum
+      - name: Test the lossless ModelSpec validation adapter
+        working-directory: tools/modelcheck
+        run: go test .
       # The checks keep their git cache under XDG_CACHE_HOME, never in the
       # checkout: a pull request could commit repositories (with hooks) into a
       # directory there.
@@ -55,8 +64,10 @@ jobs:
           path: ${{ runner.temp }}/xdg-cache/meaninggraph-registry
           key: graphs-${{ hashFiles('graphs/$records/*.yaml', 'dependencies/$records/*.yaml') }}
           restore-keys: graphs-
-      - name: Meaning checks
-        run: npm run check
+      - name: Reconcile the shared catalog without activating it
+        run: npm run catalog -- --output "${RUNNER_TEMP}/meaninggraph-catalog"
+      # Source selections and retained bytes are still reviewed changes. A CI
+      # build cannot silently turn itself into the registry's sole writer.
       - name: Prove the checks fail on broken entries
         run: npm test
       # The same CLI release as the validation above, checksum-verified, so the

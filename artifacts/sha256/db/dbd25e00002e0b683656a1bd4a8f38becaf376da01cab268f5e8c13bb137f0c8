@@ -1,0 +1,308 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "github.com/demo-db/pubs/pubs",
+    "name": "pubs",
+    "version": "0.1.0"
+  },
+  "records": {
+    "authors": {
+      "key": [
+        "au_id"
+      ],
+      "fields": {
+        "au_id": {
+          "required": true,
+          "type": "string"
+        },
+        "au_lname": {
+          "required": true,
+          "type": "string"
+        },
+        "au_fname": {
+          "required": true,
+          "type": "string"
+        },
+        "phone": {
+          "required": true,
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "zip": {
+          "type": "string"
+        },
+        "contract": {
+          "required": true,
+          "type": "int"
+        }
+      }
+    },
+    "discounts": {
+      "fields": {
+        "discounttype": {
+          "required": true,
+          "type": "string"
+        },
+        "stor_id": {
+          "record": "stores"
+        },
+        "lowqty": {
+          "type": "int"
+        },
+        "highqty": {
+          "type": "int"
+        },
+        "discount": {
+          "required": true,
+          "type": "decimal"
+        }
+      }
+    },
+    "employee": {
+      "key": [
+        "emp_id"
+      ],
+      "fields": {
+        "emp_id": {
+          "required": true,
+          "type": "string"
+        },
+        "fname": {
+          "required": true,
+          "type": "string"
+        },
+        "minit": {
+          "type": "string"
+        },
+        "lname": {
+          "required": true,
+          "type": "string"
+        },
+        "job_id": {
+          "required": true,
+          "record": "jobs"
+        },
+        "job_lvl": {
+          "type": "int"
+        },
+        "pub_id": {
+          "required": true,
+          "record": "publishers"
+        },
+        "hire_date": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "jobs": {
+      "key": [
+        "job_id"
+      ],
+      "fields": {
+        "job_id": {
+          "required": true,
+          "type": "int"
+        },
+        "job_desc": {
+          "required": true,
+          "type": "string"
+        },
+        "min_lvl": {
+          "required": true,
+          "type": "int"
+        },
+        "max_lvl": {
+          "required": true,
+          "type": "int"
+        }
+      }
+    },
+    "pub_info": {
+      "key": [
+        "pub_id"
+      ],
+      "fields": {
+        "pub_id": {
+          "required": true,
+          "record": "publishers"
+        },
+        "logo": {
+          "type": "document"
+        },
+        "pr_info": {
+          "type": "string"
+        }
+      }
+    },
+    "publishers": {
+      "key": [
+        "pub_id"
+      ],
+      "fields": {
+        "pub_id": {
+          "required": true,
+          "type": "string"
+        },
+        "pub_name": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        }
+      }
+    },
+    "roysched": {
+      "fields": {
+        "title_id": {
+          "record": "titles"
+        },
+        "lorange": {
+          "type": "int"
+        },
+        "hirange": {
+          "type": "int"
+        },
+        "royalty": {
+          "type": "int"
+        }
+      }
+    },
+    "sales": {
+      "key": [
+        "stor_id",
+        "ord_num",
+        "title_id"
+      ],
+      "fields": {
+        "stor_id": {
+          "required": true,
+          "record": "stores"
+        },
+        "ord_num": {
+          "required": true,
+          "type": "string"
+        },
+        "ord_date": {
+          "required": true,
+          "type": "string"
+        },
+        "qty": {
+          "required": true,
+          "type": "int"
+        },
+        "payterms": {
+          "required": true,
+          "type": "string"
+        },
+        "title_id": {
+          "required": true,
+          "record": "titles"
+        }
+      }
+    },
+    "stores": {
+      "key": [
+        "stor_id"
+      ],
+      "fields": {
+        "stor_id": {
+          "required": true,
+          "type": "string"
+        },
+        "stor_name": {
+          "type": "string"
+        },
+        "stor_address": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "zip": {
+          "type": "string"
+        }
+      }
+    },
+    "titleauthor": {
+      "key": [
+        "au_id",
+        "title_id"
+      ],
+      "fields": {
+        "au_id": {
+          "required": true,
+          "record": "authors"
+        },
+        "title_id": {
+          "required": true,
+          "record": "titles"
+        },
+        "au_ord": {
+          "type": "int"
+        },
+        "royaltyper": {
+          "type": "int"
+        }
+      }
+    },
+    "titles": {
+      "key": [
+        "title_id"
+      ],
+      "fields": {
+        "title_id": {
+          "required": true,
+          "type": "string"
+        },
+        "title": {
+          "required": true,
+          "type": "string"
+        },
+        "type": {
+          "required": true,
+          "type": "string"
+        },
+        "pub_id": {
+          "record": "publishers"
+        },
+        "price": {
+          "type": "decimal"
+        },
+        "advance": {
+          "type": "decimal"
+        },
+        "royalty": {
+          "type": "int"
+        },
+        "ytd_sales": {
+          "type": "int"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "pubdate": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  }
+}

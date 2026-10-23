@@ -1,0 +1,174 @@
+{
+  "format": "meaning/draft-1",
+  "id": "employees",
+  "name": "Employees (browser edition)",
+  "description": "Selected employees, departments, department assignments, titles, and salary histories from the MySQL Employees sample.",
+  "license": "CC-BY-SA-3.0",
+  "models": {
+    "employees": "employees.modelspec.hcl"
+  },
+  "concepts": [
+    {
+      "id": "employee",
+      "kind": "entity",
+      "description": "A person represented in the selected rows of the upstream Employees sample.",
+      "labels": {
+        "en": "Employee"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/employee?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///employees.employees",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///employees.employees",
+          "role": "identifier",
+          "property": "emp_no"
+        },
+        {
+          "model": "modelspec:///employees.dept_emp",
+          "role": "foreign-key",
+          "property": "emp_no"
+        },
+        {
+          "model": "modelspec:///employees.dept_manager",
+          "role": "foreign-key",
+          "property": "emp_no"
+        },
+        {
+          "model": "modelspec:///employees.titles",
+          "role": "foreign-key",
+          "property": "emp_no"
+        },
+        {
+          "model": "modelspec:///employees.salaries",
+          "role": "foreign-key",
+          "property": "emp_no"
+        }
+      ]
+    },
+    {
+      "id": "department",
+      "kind": "entity",
+      "description": "One of the nine departments in the upstream Employees sample.",
+      "labels": {
+        "en": "Department"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///employees.departments",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///employees.departments",
+          "role": "identifier",
+          "property": "dept_no"
+        },
+        {
+          "model": "modelspec:///employees.departments",
+          "role": "display-name",
+          "property": "dept_name"
+        },
+        {
+          "model": "modelspec:///employees.dept_emp",
+          "role": "foreign-key",
+          "property": "dept_no"
+        },
+        {
+          "model": "modelspec:///employees.dept_manager",
+          "role": "foreign-key",
+          "property": "dept_no"
+        }
+      ]
+    },
+    {
+      "id": "department-assignment",
+      "kind": "entity",
+      "description": "A dated department assignment for a selected employee.",
+      "labels": {
+        "en": "Department assignment"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///employees.dept_emp",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "department-manager-assignment",
+      "kind": "entity",
+      "description": "A dated assignment of one of the source managers to a department.",
+      "labels": {
+        "en": "Department manager assignment"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///employees.dept_manager",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "employee-title-history",
+      "kind": "entity",
+      "description": "A title and effective date range recorded for a selected employee.",
+      "labels": {
+        "en": "Employee title history"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///employees.titles",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "job-title",
+      "kind": "attribute",
+      "description": "A title string recorded in one employee title-history row.",
+      "labels": {
+        "en": "Job title"
+      },
+      "of": "employee-title-history",
+      "bindings": [
+        {
+          "model": "modelspec:///employees.titles",
+          "role": "value",
+          "property": "title"
+        }
+      ]
+    },
+    {
+      "id": "employee-salary-history",
+      "kind": "entity",
+      "description": "A salary value and effective date range recorded for a selected employee; the upstream source declares no currency.",
+      "labels": {
+        "en": "Employee salary history"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///employees.salaries",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "salary-amount",
+      "kind": "attribute",
+      "description": "The integer salary amount as provided by the source sample. No currency unit is specified in the upstream schema.",
+      "labels": {
+        "en": "Salary amount"
+      },
+      "of": "employee-salary-history",
+      "bindings": [
+        {
+          "model": "modelspec:///employees.salaries",
+          "role": "value",
+          "property": "salary"
+        }
+      ]
+    }
+  ]
+}

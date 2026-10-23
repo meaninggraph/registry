@@ -1,0 +1,89 @@
+{
+  "format": "meaning/draft-1",
+  "id": "northwind",
+  "name": "Northwind",
+  "description": "Semantic concepts for the Northwind sample business database.",
+  "license": "CC0-1.0",
+  "models": {
+    "northwind": "northwind.modelspec.hcl"
+  },
+  "concepts": [
+    {
+      "id": "customer",
+      "kind": "entity",
+      "description": "A business that places Northwind orders.",
+      "labels": {
+        "en": "customer"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/customer?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///northwind.Customers",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "kind": "entity",
+      "description": "An employee who manages or processes orders.",
+      "labels": {
+        "en": "employee"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/employee?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///northwind.Employees",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "order",
+      "kind": "entity",
+      "description": "A customer's order requesting Northwind to supply products.",
+      "labels": {
+        "en": "sales order"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/order?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///northwind.Orders",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "order-line",
+      "kind": "entity",
+      "of": "order",
+      "description": "A product and quantity requested on a Northwind order.",
+      "labels": {
+        "en": "sales order line"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/order-line?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///northwind.OrderDetails",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "shipping-country",
+      "kind": "attribute",
+      "description": "The country to which the order is shipped.",
+      "labels": {
+        "en": "shipping country"
+      },
+      "values-of": "meaning://github.com/meaninggraph/core/country?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///northwind.Orders",
+          "property": "ShipCountry",
+          "role": "value"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+# Immutable, complete revision receipts. JSON serialization is a YAML subset.
+titles:
+  en: MeaningGraph resource revisions
+record_file:
+  name: '{key}.yaml'
+  format: yaml
+  type: map[string]any
+columns:
+  format:
+    type: string
+    required: true
+    enum: [meaninggraph-revision/draft-1]
+  id:
+    type: string
+    required: true
+    length: 64
+  kind:
+    type: string
+    required: true
+    enum: [meaning, model]
+  address:
+    type: string
+    required: true
+  registry_id:
+    type: string
+    required: true
+  repository:
+    type: string
+    required: true
+  commit:
+    type: string
+    required: true
+    length: 40
+  source_record:
+    type: map[string]any
+    required: true
+  acquisition_record:
+    type: map[string]any
+  metadata_scope:
+    type: string
+  selected_registration_commit:
+    type: string
+    length: 40
+  format_identifier:
+    type: string
+    required: true
+  module:
+    type: map[string]any
+  source_paths:
+    type: map[string]any
+  dependency_pins:
+    type: '[]any'
+    required: true
+  licences:
+    type: map[string]any
+    required: true
+  maintainers:
+    type: '[]string'
+    required: true
+    min_length: 1
+    foreign_key: maintainers
+  logical_digest:
+    type: map[string]any
+  files:
+    type: '[]any'
+    required: true
+    min_length: 1
+  definition:
+    type: map[string]any
+    required: true

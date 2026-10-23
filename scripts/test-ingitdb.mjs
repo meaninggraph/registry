@@ -33,7 +33,7 @@ const edit = (collection, key, change) => (dir) => {
 function validate(change) {
   const dir = join(scratch, `db-${count++}`);
   mkdirSync(dir);
-  for (const name of ['.ingitdb', 'graphs', 'dependencies', 'maintainers']) cpSync(join(root, name), join(dir, name), { recursive: true });
+  for (const name of ['.ingitdb', 'graphs', 'models', 'revisions', 'model_dependencies', 'dependencies', 'maintainers']) cpSync(join(root, name), join(dir, name), { recursive: true });
   change?.(dir);
   try {
     execFileSync(cli, ['validate', `--path=${dir}`, '--safe-diagnostics'], { stdio: 'pipe' });

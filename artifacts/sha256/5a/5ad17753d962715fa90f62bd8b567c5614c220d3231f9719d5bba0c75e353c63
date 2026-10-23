@@ -1,0 +1,133 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "github.com/demo-db/countries/countries",
+    "name": "countries",
+    "version": "0.1.0"
+  },
+  "records": {
+    "countries": {
+      "key": [
+        "iso2"
+      ],
+      "fields": {
+        "iso2": {
+          "required": true,
+          "type": "string"
+        },
+        "iso3": {
+          "required": true,
+          "type": "string"
+        },
+        "name": {
+          "required": true,
+          "type": "string"
+        },
+        "continent": {
+          "type": "string"
+        },
+        "capital": {
+          "type": "string"
+        },
+        "currency_code": {
+          "type": "string"
+        },
+        "currency_name": {
+          "type": "string"
+        },
+        "area_km2": {
+          "type": "decimal"
+        },
+        "phone_prefix": {
+          "type": "string"
+        },
+        "tld": {
+          "type": "string"
+        },
+        "geonameid": {
+          "type": "int"
+        },
+        "country_source_id": {
+          "required": true,
+          "record": "sources"
+        },
+        "population": {
+          "type": "int"
+        },
+        "population_year": {
+          "type": "int"
+        },
+        "population_source_id": {
+          "record": "sources"
+        },
+        "population_source_url": {
+          "type": "string"
+        }
+      }
+    },
+    "country_aliases": {
+      "key": [
+        "alias"
+      ],
+      "fields": {
+        "alias": {
+          "required": true,
+          "type": "string"
+        },
+        "country_iso2": {
+          "required": true,
+          "record": "countries"
+        },
+        "source": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "sources": {
+      "key": [
+        "source_id"
+      ],
+      "fields": {
+        "source_id": {
+          "required": true,
+          "type": "string"
+        },
+        "publisher": {
+          "required": true,
+          "type": "string"
+        },
+        "dataset": {
+          "required": true,
+          "type": "string"
+        },
+        "url": {
+          "required": true,
+          "type": "string"
+        },
+        "licence": {
+          "required": true,
+          "type": "string"
+        },
+        "licence_url": {
+          "required": true,
+          "type": "string"
+        },
+        "attribution": {
+          "required": true,
+          "type": "string"
+        },
+        "modifications": {
+          "required": true,
+          "type": "string"
+        },
+        "retrieved_at": {
+          "type": "string"
+        },
+        "source_updated": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

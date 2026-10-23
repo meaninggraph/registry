@@ -1,0 +1,454 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "github.com/demo-db/sakila/sakila",
+    "name": "sakila",
+    "version": "0.1.0"
+  },
+  "records": {
+    "actor": {
+      "key": [
+        "actor_id"
+      ],
+      "fields": {
+        "actor_id": {
+          "type": "int"
+        },
+        "first_name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "address": {
+      "key": [
+        "address_id"
+      ],
+      "fields": {
+        "address_id": {
+          "type": "int"
+        },
+        "address": {
+          "required": true,
+          "type": "string"
+        },
+        "address2": {
+          "type": "string"
+        },
+        "district": {
+          "required": true,
+          "type": "string"
+        },
+        "city_id": {
+          "required": true,
+          "record": "city"
+        },
+        "postal_code": {
+          "type": "string"
+        },
+        "phone": {
+          "required": true,
+          "type": "string"
+        },
+        "location": {
+          "required": true,
+          "type": "document"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "category": {
+      "key": [
+        "category_id"
+      ],
+      "fields": {
+        "category_id": {
+          "type": "int"
+        },
+        "name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "city": {
+      "key": [
+        "city_id"
+      ],
+      "fields": {
+        "city_id": {
+          "type": "int"
+        },
+        "city": {
+          "required": true,
+          "type": "string"
+        },
+        "country_id": {
+          "required": true,
+          "record": "country"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "country": {
+      "key": [
+        "country_id"
+      ],
+      "fields": {
+        "country_id": {
+          "type": "int"
+        },
+        "country": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "customer": {
+      "key": [
+        "customer_id"
+      ],
+      "fields": {
+        "customer_id": {
+          "type": "int"
+        },
+        "store_id": {
+          "required": true,
+          "record": "store"
+        },
+        "first_name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_name": {
+          "required": true,
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "address_id": {
+          "required": true,
+          "record": "address"
+        },
+        "active": {
+          "required": true,
+          "type": "int"
+        },
+        "create_date": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "type": "string"
+        }
+      }
+    },
+    "film": {
+      "key": [
+        "film_id"
+      ],
+      "fields": {
+        "film_id": {
+          "type": "int"
+        },
+        "title": {
+          "required": true,
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "release_year": {
+          "type": "string"
+        },
+        "language_id": {
+          "required": true,
+          "record": "language"
+        },
+        "original_language_id": {
+          "record": "language"
+        },
+        "rental_duration": {
+          "required": true,
+          "type": "int"
+        },
+        "rental_rate": {
+          "required": true,
+          "type": "decimal"
+        },
+        "length": {
+          "type": "int"
+        },
+        "replacement_cost": {
+          "required": true,
+          "type": "decimal"
+        },
+        "rating": {
+          "type": "string"
+        },
+        "special_features": {
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "film_actor": {
+      "key": [
+        "actor_id",
+        "film_id"
+      ],
+      "fields": {
+        "actor_id": {
+          "required": true,
+          "record": "actor"
+        },
+        "film_id": {
+          "required": true,
+          "record": "film"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "film_category": {
+      "key": [
+        "film_id",
+        "category_id"
+      ],
+      "fields": {
+        "film_id": {
+          "required": true,
+          "record": "film"
+        },
+        "category_id": {
+          "required": true,
+          "record": "category"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "film_text": {
+      "key": [
+        "film_id"
+      ],
+      "fields": {
+        "film_id": {
+          "required": true,
+          "type": "int"
+        },
+        "title": {
+          "required": true,
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "inventory": {
+      "key": [
+        "inventory_id"
+      ],
+      "fields": {
+        "inventory_id": {
+          "type": "int"
+        },
+        "film_id": {
+          "required": true,
+          "record": "film"
+        },
+        "store_id": {
+          "required": true,
+          "record": "store"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "language": {
+      "key": [
+        "language_id"
+      ],
+      "fields": {
+        "language_id": {
+          "type": "int"
+        },
+        "name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "payment": {
+      "key": [
+        "payment_id"
+      ],
+      "fields": {
+        "payment_id": {
+          "type": "int"
+        },
+        "customer_id": {
+          "required": true,
+          "record": "customer"
+        },
+        "staff_id": {
+          "required": true,
+          "record": "staff"
+        },
+        "rental_id": {
+          "record": "rental"
+        },
+        "amount": {
+          "required": true,
+          "type": "decimal"
+        },
+        "payment_date": {
+          "required": true,
+          "type": "string"
+        },
+        "last_update": {
+          "type": "string"
+        }
+      }
+    },
+    "rental": {
+      "key": [
+        "rental_id"
+      ],
+      "fields": {
+        "rental_id": {
+          "type": "int"
+        },
+        "rental_date": {
+          "required": true,
+          "type": "string"
+        },
+        "inventory_id": {
+          "required": true,
+          "record": "inventory"
+        },
+        "customer_id": {
+          "required": true,
+          "record": "customer"
+        },
+        "return_date": {
+          "type": "string"
+        },
+        "staff_id": {
+          "required": true,
+          "record": "staff"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "staff": {
+      "key": [
+        "staff_id"
+      ],
+      "fields": {
+        "staff_id": {
+          "type": "int"
+        },
+        "first_name": {
+          "required": true,
+          "type": "string"
+        },
+        "last_name": {
+          "required": true,
+          "type": "string"
+        },
+        "address_id": {
+          "required": true,
+          "record": "address"
+        },
+        "picture": {
+          "type": "document"
+        },
+        "email": {
+          "type": "string"
+        },
+        "store_id": {
+          "required": true,
+          "record": "store"
+        },
+        "active": {
+          "required": true,
+          "type": "int"
+        },
+        "username": {
+          "required": true,
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "store": {
+      "key": [
+        "store_id"
+      ],
+      "fields": {
+        "store_id": {
+          "type": "int"
+        },
+        "manager_staff_id": {
+          "required": true,
+          "record": "staff"
+        },
+        "address_id": {
+          "required": true,
+          "record": "address"
+        },
+        "last_update": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  }
+}

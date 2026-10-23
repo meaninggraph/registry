@@ -153,15 +153,17 @@ export function readCollection(root, collection) {
 
 export function readRegistry(root) {
   const graphs = readCollection(root, 'graphs');
+  const models = readCollection(root, 'models');
   const dependencies = readCollection(root, 'dependencies');
   const maintainers = readCollection(root, 'maintainers');
   const columns = { graphs: readColumns(root, 'graphs'), dependencies: readColumns(root, 'dependencies'), maintainers: readColumns(root, 'maintainers') };
   return {
     graphs: graphs.records,
+    models: models.records,
     dependencies: dependencies.records,
     maintainers: maintainers.records,
     columns: { graphs: columns.graphs.columns, dependencies: columns.dependencies.columns, maintainers: columns.maintainers.columns },
-    problems: [...graphs.problems, ...dependencies.problems, ...maintainers.problems, ...columns.graphs.problems, ...columns.dependencies.problems, ...columns.maintainers.problems],
+    problems: [...graphs.problems, ...models.problems, ...dependencies.problems, ...maintainers.problems, ...columns.graphs.problems, ...columns.dependencies.problems, ...columns.maintainers.problems],
   };
 }
 
@@ -490,8 +492,15 @@ export function onBranch(url, branch, commit, cacheDir, fetched = new Set(), run
 // { meaning, dir, commit }.
 export async function loadChecker({ root, graphs, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'checker'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set() }) {
   const core = graphs.find((graph) => graph.key === checkerGraph);
-  if (!core) throw new Error(`graphs/$records/${checkerGraph}.yaml is missing; the checker is read from that graph's commit`);
-  const { repository, commit } = core.data;
+  let trusted = core?.data;
+  const toolsPath = join(root, 'tools.json');
+  if (existsSync(toolsPath)) {
+    const tools = JSON.parse(readFileSync(toolsPath, 'utf8'));
+    if (tools.format !== 'meaninggraph-tools/v1' || tools.meaning?.entrypoint !== 'scripts/lib/meaning.mjs') throw new Error('invalid trusted meaning checker configuration');
+    trusted = tools.meaning;
+  }
+  if (!trusted) throw new Error(`graphs/$records/${checkerGraph}.yaml is missing; the checker is read from that graph's commit unless tools.json pins it independently`);
+  const { repository, commit } = trusted;
   // The checker is code that CI runs, so it only ever comes from this repository.
   if (repository !== checkerRepository) throw new Error(`the ${checkerGraph} record must name ${checkerRepository}, where the checker lives, not ${repository}`);
   if (!commitPattern.test(commit ?? '')) throw new Error(`the ${checkerGraph} record's commit must be a full commit id`);
@@ -649,7 +658,7 @@ function licenceProblems(file, dir, paths, expected, column, { validHclTwins = n
 // URL to the URL git fetches (tests point it at local repositories);
 // `checker` is the result of loadChecker. `notice(text)` receives the notes that are not problems (a model in
 // the earlier ModelSpec spelling); it prints them to standard error unless told otherwise.
-export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'graphs'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set(), branches = new Map(), notice = (text) => console.error(text) }) {
+export function graphProblems({ root, registry, checker, urlFor = (url) => url, cacheDir = join(ownCacheDir(root), 'graphs'), historyDir = join(ownCacheDir(root), 'history'), fetched = new Set(), branches = new Map(), modelspecTwinChecker = modelspecTwinProblems, notice = (text) => console.error(text) }) {
   const { meaning } = checker;
   const schemaPath = join(checker.dir, 'meaning.schema.json');
   const problems = [];
@@ -767,7 +776,7 @@ export function graphProblems({ root, registry, checker, urlFor = (url) => url, 
       problems.push(...meaning.checkMeaning({ local, resolve, schemaPath, selfRepo }).map((problem) => `${file}: ${strip(problem)}`));
     }
     problems.push(...licenceProblems(file, at.dir, meaningFiles.files, data.meaning_licence, 'meaning_licence'));
-    const modelTwins = modelspecTwinProblems(file, at.dir, modelFiles.files, notice);
+    const modelTwins = modelspecTwinChecker(file, at.dir, modelFiles.files, notice, graph);
     problems.push(...modelTwins.problems);
     if (data.model_licence) problems.push(...licenceProblems(file, at.dir, modelFiles.files, data.model_licence, 'model_licence', { validHclTwins: modelTwins.validHclTwins }));
     // Dependencies: exactly the registered graphs the files reference, at the commits they pin.
@@ -836,7 +845,7 @@ export function indexProblems(root, registry) {
 // Nothing is checked, fetched or read from a cache when the registry tracks a
 // `.cache` directory, or when the cache directory cannot be trusted
 // (prepareCacheDir): the one problem returned says which.
-export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(), branches = new Map(), notice } = {}) {
+export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(), branches = new Map(), notice, modelspecTwinChecker } = {}) {
   const registry = readRegistry(root);
   try {
     const tracked = trackedCache(root);
@@ -847,12 +856,15 @@ export async function checkRegistry({ root, urlFor, cacheDir, fetched = new Set(
     return { problems: [`cache: ${error.message}`], graphs: registry.graphs.length };
   }
   const problems = [...registry.problems, ...recordProblems(registry), ...indexProblems(root, registry)];
+  // Model-only registries need neither a synthetic semantic core resource nor
+  // executable semantic checker code. Model validation is a separate stage.
+  if (registry.graphs.length === 0) return { problems, graphs: 0 };
   let checker;
   const historyDir = join(cacheDir, 'history');
   try { checker = await loadChecker({ root, graphs: registry.graphs, urlFor, cacheDir: join(cacheDir, 'checker'), historyDir, fetched }); } catch (error) {
     problems.push(`checker: ${error.message}`);
     return { problems, graphs: registry.graphs.length };
   }
-  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs'), historyDir, fetched, branches, ...(notice ? { notice } : {}) }));
+  problems.push(...graphProblems({ root, registry, checker, urlFor, cacheDir: join(cacheDir, 'graphs'), historyDir, fetched, branches, ...(modelspecTwinChecker ? { modelspecTwinChecker } : {}), ...(notice ? { notice } : {}) }));
   return { problems, graphs: registry.graphs.length, checker: checker.commit };
 }

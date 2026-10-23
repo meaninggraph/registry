@@ -39,7 +39,7 @@ const writeIndex = (dir) => writeFileSync(join(dir, 'index.json'), buildIndex(re
 function registry(change, { rebuildIndex = true } = {}) {
   const dir = join(scratch, `registry-${count++}`);
   mkdirSync(dir);
-  for (const name of ['.ingitdb', 'graphs', 'dependencies', 'maintainers', 'index.json']) cpSync(join(root, name), join(dir, name), { recursive: true });
+  for (const name of ['.ingitdb', 'graphs', 'models', 'revisions', 'model_dependencies', 'dependencies', 'maintainers', 'index.json']) cpSync(join(root, name), join(dir, name), { recursive: true });
   change?.(dir);
   if (rebuildIndex) writeIndex(dir);
   return dir;

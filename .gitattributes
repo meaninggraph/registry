@@ -1,0 +1,3 @@
+# Content-addressed publisher source/licence bytes must survive checkout unchanged.
+# Their original whitespace is part of the verified digest, not authored code.
+artifacts/sha256/** -text -whitespace

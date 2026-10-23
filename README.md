@@ -1,9 +1,18 @@
 # MeaningGraph registry
 
-The public list of meaning graphs: for each one, the address people write to
-refer to it, the repository it lives in, the commit that is its current
-reviewed version, its licences, its maintainers, and the other graphs it
-depends on.
+MeaningGraph is an open registry for data models and semantic definitions.
+Describe how your data is structured, what it means, or both. DataModels are
+logical definitions independent of database engines and deployed instances.
+Semantic mappings are optional: a model needs no semantic graph to register.
+
+Registrations record stable addresses, exact source commits, licences,
+maintainers and explicit dependencies. Existing `meaning://` and `modelspec://`
+addresses and ModelSpec source formats retain their meanings.
+
+The table below lists the semantic resources. Native model registrations are in
+`models/$records`; the staged common catalog includes both resource types. See
+[shared catalog preparation and rollback](docs/shared-catalog.md) for the additive
+formats, exact resolution and release boundary.
 
 | Id | Address | Repository at commit | Kind | Status |
 |---|---|---|---|---|
@@ -53,12 +62,20 @@ each record has. It can be read as plain files, written by pull request, and
 it is validated in two layers (see [Checks](#checks)).
 
 ```
-.ingitdb/root-collections.yaml      the three collections and their directories
+.ingitdb/root-collections.yaml      the shared collections and their directories
 graphs/.collection/definition.yaml  the columns of a graph record
 graphs/$records/<id>.yaml           one record per graph, keyed by registry id
 dependencies/$records/<graph>--<depends_on>.yaml
 maintainers/$records/<github-handle>.yaml
 index.json                          every graph in one file, generated
+models/$records/<id>.yaml           DataModel selection, existing ModelSpec format
+model_dependencies/$records/*.yaml  explicit exact module dependency locks
+revisions/$records/<sha256>.yaml     immutable source revision receipt (JSON/YAML)
+artifacts/sha256/<prefix>/<sha256>   exact original source/registry/licence bytes
+definitions/<revision-id>.json      full normalized native view
+catalog.json                        selected meanings and DataModels
+revisions/index.json                exact historical revision lookup
+modelspec-index.json                legacy model index projection
 scripts/                            the meaning checks and index.json writer
 ```
 

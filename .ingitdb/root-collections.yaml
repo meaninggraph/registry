@@ -1,3 +1,6 @@
 graphs: graphs
+models: models
+revisions: revisions
+model_dependencies: model_dependencies
 dependencies: dependencies
 maintainers: maintainers

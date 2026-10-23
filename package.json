@@ -11,8 +11,9 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "index": "node scripts/build-index.mjs",
-    "test": "node --test scripts/test.mjs scripts/test-modelspec.mjs",
-    "test:ingitdb": "node --test scripts/test-ingitdb.mjs"
+    "test": "node --test scripts/test.mjs scripts/test-modelspec.mjs scripts/test-revisions.mjs scripts/test-model-only.mjs scripts/test-model-licences.mjs scripts/test-catalog.mjs",
+    "test:ingitdb": "node --test scripts/test-ingitdb.mjs",
+    "catalog": "node scripts/build-catalog.mjs"
   },
   "dependencies": {
     "yaml": "^2.8.1"

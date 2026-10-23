@@ -1,0 +1,113 @@
+{
+  "format": "meaning/draft-1",
+  "id": "sakila",
+  "name": "Sakila",
+  "description": "Film, customer, inventory, rental, payment, and store concepts in the MySQL Sakila sample.",
+  "license": "CC0-1.0",
+  "models": {
+    "sakila": "sakila.modelspec.hcl"
+  },
+  "concepts": [
+    {
+      "id": "actor",
+      "kind": "entity",
+      "description": "A performer associated with one or more films.",
+      "labels": {
+        "en": "Actor"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/person?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.actor",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "customer",
+      "kind": "entity",
+      "description": "A person registered to rent from a store.",
+      "labels": {
+        "en": "Customer"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/customer?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.customer",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "employee",
+      "kind": "entity",
+      "description": "An employee who manages stores or processes rentals and payments.",
+      "labels": {
+        "en": "Staff member"
+      },
+      "extends": "meaning://github.com/meaninggraph/core/employee?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.staff",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "film",
+      "kind": "entity",
+      "description": "A title in the rental catalogue.",
+      "labels": {
+        "en": "Film"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.film",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "kind": "entity",
+      "description": "A location that holds and rents film inventory.",
+      "labels": {
+        "en": "Store"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.store",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "rental",
+      "kind": "entity",
+      "description": "A customer's rental of one item of film inventory.",
+      "labels": {
+        "en": "Rental"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.rental",
+          "role": "entity"
+        }
+      ]
+    },
+    {
+      "id": "payment",
+      "kind": "entity",
+      "description": "A payment recorded for a rental transaction.",
+      "labels": {
+        "en": "Payment"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///sakila.payment",
+          "role": "entity"
+        }
+      ]
+    }
+  ]
+}
