@@ -1,0 +1,872 @@
+format: meaning/draft-1
+id: connected
+name: Connected operations
+description: Reusable concepts connecting purchasing, events and asset maintenance.
+license: CC0-1.0
+concepts:
+  - id: team
+    kind: entity
+    labels:
+      en: Team
+    description: A group coordinating people toward a shared purpose; membership
+      does not require a separate legal organization.
+  - id: team-name
+    kind: attribute
+    of: team
+    labels:
+      en: Team name
+    description: The name used for the team.
+  - id: team-organization
+    kind: attribute
+    of: team
+    labels:
+      en: Team organization
+    description: An organization with which the team is associated.
+    values-of: organization
+  - id: team-member
+    kind: attribute
+    of: team
+    labels:
+      en: Team member
+    description: A person participating in the team.
+    values-of: person
+  - id: team-contact-point
+    kind: attribute
+    of: team
+    labels:
+      en: Team contact point
+    description: A route for contacting the team.
+    values-of: contact-point
+  - id: organizational-unit
+    kind: entity
+    labels:
+      en: Organizational unit
+    description: A subdivision of an organization with a defined operating responsibility.
+  - id: organizational-unit-name
+    kind: attribute
+    of: organizational-unit
+    labels:
+      en: Organizational unit name
+    description: The name of the subdivision.
+  - id: organizational-unit-organization
+    kind: attribute
+    of: organizational-unit
+    labels:
+      en: Organizational unit organization
+    description: The organization of which this is a subdivision.
+    values-of: organization
+  - id: organizational-unit-responsibility
+    kind: attribute
+    of: organizational-unit
+    labels:
+      en: Organizational unit responsibility
+    description: The operating remit of the subdivision.
+  - id: organizational-unit-contact-point
+    kind: attribute
+    of: organizational-unit
+    labels:
+      en: Organizational unit contact point
+    description: A route for contacting the subdivision.
+    values-of: contact-point
+  - id: contact-point
+    kind: entity
+    labels:
+      en: Contact point
+    description: A communication endpoint used to reach a person, organization or
+      group; it is not the person or place itself.
+  - id: contact-point-channel
+    kind: attribute
+    of: contact-point
+    labels:
+      en: Contact point channel
+    description: The communication medium, such as email or telephone.
+  - id: contact-point-value
+    kind: attribute
+    of: contact-point
+    labels:
+      en: Contact point value
+    description: The address or identifier used on that channel.
+  - id: contact-point-purpose
+    kind: attribute
+    of: contact-point
+    labels:
+      en: Contact point purpose
+    description: The reason to use this communication endpoint.
+  - id: contact-point-person
+    kind: attribute
+    of: contact-point
+    labels:
+      en: Contact point person
+    description: A person reachable through this endpoint.
+    values-of: person
+  - id: contact-point-organization
+    kind: attribute
+    of: contact-point
+    labels:
+      en: Contact point organization
+    description: An organization reachable through this endpoint.
+    values-of: organization
+  - id: place
+    kind: entity
+    labels:
+      en: Place
+    description: A location where something can be situated or occur; distinct from
+      the address used to describe it.
+  - id: place-name
+    kind: attribute
+    of: place
+    labels:
+      en: Place name
+    description: The name used for the location.
+  - id: place-address
+    kind: attribute
+    of: place
+    labels:
+      en: Place address
+    description: An address describing the location.
+    values-of: address
+  - id: place-time-zone
+    kind: attribute
+    of: place
+    labels:
+      en: Place time zone
+    description: The civil time zone used at the location.
+    values-of: time-zone
+  - id: place-description
+    kind: attribute
+    of: place
+    labels:
+      en: Place description
+    description: A description distinguishing this location.
+  - id: address
+    kind: entity
+    labels:
+      en: Address
+    description: A structured description used to locate a place or direct
+      deliveries; distinct from the physical place.
+  - id: address-street
+    kind: attribute
+    of: address
+    labels:
+      en: Address street
+    description: The thoroughfare and premises description.
+  - id: address-locality
+    kind: attribute
+    of: address
+    labels:
+      en: Address locality
+    description: The town or locality in the address.
+  - id: address-postal-code
+    kind: attribute
+    of: address
+    labels:
+      en: Address postal code
+    description: The postal routing code, where applicable.
+  - id: address-country
+    kind: attribute
+    of: address
+    labels:
+      en: Address country
+    description: The country in which the address is located.
+    values-of: country
+  - id: time-zone
+    kind: entity
+    labels:
+      en: Time zone
+    description: A named set of civil time rules, including changes in UTC offset;
+      distinct from a fixed offset.
+  - id: time-zone-identifier
+    kind: attribute
+    of: time-zone
+    labels:
+      en: Time zone identifier
+    description: The identifier naming the time rules in a stated naming system.
+  - id: time-zone-naming-system
+    kind: attribute
+    of: time-zone
+    labels:
+      en: Time zone naming system
+    description: The system defining the time-zone identifier, such as IANA tzdb.
+  - id: time-zone-label
+    kind: attribute
+    of: time-zone
+    labels:
+      en: Time zone label
+    description: A human-readable label for these time rules.
+  - id: time-zone-description
+    kind: attribute
+    of: time-zone
+    labels:
+      en: Time zone description
+    description: The geographic or operational use of the time zone.
+  - id: product
+    kind: entity
+    labels:
+      en: Product
+    description: A type or model of good offered for supply; distinct from an
+      individual asset that realizes it.
+  - id: product-name
+    kind: attribute
+    of: product
+    labels:
+      en: Product name
+    description: The name of the product offering.
+  - id: product-model-code
+    kind: attribute
+    of: product
+    labels:
+      en: Product model code
+    description: The model identifier assigned to this product.
+  - id: product-description
+    kind: attribute
+    of: product
+    labels:
+      en: Product description
+    description: The characteristics of this product offering.
+  - id: product-supplier
+    kind: attribute
+    of: product
+    labels:
+      en: Product supplier
+    description: An organization offering this product.
+    values-of: organization
+  - id: service
+    kind: entity
+    labels:
+      en: Service
+    description: An activity or capability offered for another party, rather than a
+      physical product unit.
+  - id: service-name
+    kind: attribute
+    of: service
+    labels:
+      en: Service name
+    description: The name of the offered service.
+  - id: service-description
+    kind: attribute
+    of: service
+    labels:
+      en: Service description
+    description: The activity or capability supplied.
+  - id: service-provider-organization
+    kind: attribute
+    of: service
+    labels:
+      en: Service provider organization
+    description: An organization providing the service.
+    values-of: organization
+  - id: service-provider-person
+    kind: attribute
+    of: service
+    labels:
+      en: Service provider person
+    description: A person providing the service.
+    values-of: person
+  - id: payment
+    kind: entity
+    labels:
+      en: Payment
+    description: A transfer of money between parties; distinct from a request to pay
+      or an outstanding obligation.
+  - id: payment-amount
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment amount
+    description: The monetary amount recorded for the transfer.
+    extends: money-amount
+  - id: payment-currency
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment currency
+    description: The recorded currency of the transfer amount.
+    values-of: currency
+  - id: payment-date
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment date
+    description: The date on which the transfer is recorded.
+    extends: date
+  - id: payment-payer-organization
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment payer organization
+    description: An organization acting as payer.
+    values-of: organization
+  - id: payment-payer-person
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment payer person
+    description: A person acting as payer.
+    values-of: person
+  - id: payment-financial-account
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment financial account
+    description: An account through which the payment is recorded.
+    values-of: financial-account
+  - id: payment-obligation
+    kind: entity
+    labels:
+      en: Payment obligation
+    description: A duty to pay an amount to another party; distinct from the payment
+      that may discharge it.
+  - id: payment-obligation-amount
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation amount
+    description: The original monetary amount committed by the obligation, distinct
+      from its outstanding balance.
+    extends: money-amount
+  - id: payment-obligation-currency
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation currency
+    description: The currency in which the obligation amount is recorded.
+    values-of: currency
+  - id: payment-obligation-invoice
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation invoice
+    description: An invoice providing context for the obligation.
+    values-of: invoice
+  - id: payment-obligation-debtor-organization
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation debtor organization
+    description: An organization owing the payment.
+    values-of: organization
+  - id: payment-obligation-debtor-person
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation debtor person
+    description: A person owing the payment.
+    values-of: person
+  - id: payment-obligation-due-date
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: Payment obligation due date
+    description: The date by which payment is due.
+    extends: date
+  - id: financial-account
+    kind: entity
+    labels:
+      en: Financial account
+    description: An account recording monetary holdings or transactions for a party;
+      not necessarily a bank account.
+  - id: financial-account-name
+    kind: attribute
+    of: financial-account
+    labels:
+      en: Financial account name
+    description: The name used to identify the account.
+  - id: financial-account-identifier
+    kind: attribute
+    of: financial-account
+    labels:
+      en: Financial account identifier
+    description: An account identifier in the relevant accounting system.
+  - id: financial-account-currency
+    kind: attribute
+    of: financial-account
+    labels:
+      en: Financial account currency
+    description: A currency in which account entries are recorded.
+    values-of: currency
+  - id: financial-account-holder-organization
+    kind: attribute
+    of: financial-account
+    labels:
+      en: Financial account holder organization
+    description: An organization holding the account.
+    values-of: organization
+  - id: financial-account-holder-person
+    kind: attribute
+    of: financial-account
+    labels:
+      en: Financial account holder person
+    description: A person holding the account.
+    values-of: person
+  - id: contract
+    kind: entity
+    labels:
+      en: Contract
+    description: An agreement creating commitments between parties; distinct from a
+      document that records the agreement.
+  - id: contract-name
+    kind: attribute
+    of: contract
+    labels:
+      en: Contract name
+    description: The name used for the agreement.
+  - id: contract-reference
+    kind: attribute
+    of: contract
+    labels:
+      en: Contract reference
+    description: The identifier used to refer to the agreement.
+  - id: contract-party-organization
+    kind: attribute
+    of: contract
+    labels:
+      en: Contract party organization
+    description: An organization participating as a party.
+    values-of: organization
+  - id: contract-party-person
+    kind: attribute
+    of: contract
+    labels:
+      en: Contract party person
+    description: A person participating as a party.
+    values-of: person
+  - id: contract-document
+    kind: attribute
+    of: contract
+    labels:
+      en: Contract document
+    description: A document recording evidence of the agreement.
+    values-of: document
+  - id: asset
+    kind: entity
+    labels:
+      en: Asset
+    description: An individually tracked resource used or controlled by a party;
+      distinct from its product model.
+  - id: asset-identifier
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset identifier
+    description: The identifier assigned to this individual resource.
+  - id: asset-name
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset name
+    description: The name used for this resource.
+  - id: asset-product
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset product
+    description: The product model realized by this asset.
+    values-of: product
+  - id: asset-custodian-organization
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset custodian organization
+    description: An organization responsible for custody.
+    values-of: organization
+  - id: asset-custodian-person
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset custodian person
+    description: A person responsible for custody.
+    values-of: person
+  - id: asset-place
+    kind: attribute
+    of: asset
+    labels:
+      en: Asset place
+    description: A location at which the asset is situated.
+    values-of: place
+  - id: shipment
+    kind: entity
+    labels:
+      en: Shipment
+    description: A dispatch of goods between locations; distinct from the order
+      requesting the goods.
+  - id: shipment-reference
+    kind: attribute
+    of: shipment
+    labels:
+      en: Shipment reference
+    description: The identifier used to track this dispatch.
+  - id: shipment-order
+    kind: attribute
+    of: shipment
+    labels:
+      en: Shipment order
+    description: An order whose fulfilment involves the shipment.
+    values-of: order
+  - id: shipment-asset
+    kind: attribute
+    of: shipment
+    labels:
+      en: Shipment asset
+    description: An individually tracked resource carried by the shipment.
+    values-of: asset
+  - id: shipment-destination
+    kind: attribute
+    of: shipment
+    labels:
+      en: Shipment destination
+    description: A destination of the shipment.
+    values-of: place
+  - id: shipment-dispatch-date
+    kind: attribute
+    of: shipment
+    labels:
+      en: Shipment dispatch date
+    description: The recorded date of dispatch.
+    extends: date
+  - id: project
+    kind: entity
+    labels:
+      en: Project
+    description: A coordinated undertaking aimed at a defined outcome, commonly
+      realized through tasks.
+  - id: project-name
+    kind: attribute
+    of: project
+    labels:
+      en: Project name
+    description: The name used for the undertaking.
+  - id: project-objective
+    kind: attribute
+    of: project
+    labels:
+      en: Project objective
+    description: The outcome the undertaking aims to achieve.
+  - id: project-team
+    kind: attribute
+    of: project
+    labels:
+      en: Project team
+    description: A team participating in delivery.
+    values-of: team
+  - id: project-event
+    kind: attribute
+    of: project
+    labels:
+      en: Project event
+    description: An event that provides context for the undertaking.
+    values-of: event
+  - id: task
+    kind: entity
+    labels:
+      en: Task
+    description: A defined piece of work that can be assigned and tracked within an
+      undertaking.
+  - id: task-name
+    kind: attribute
+    of: task
+    labels:
+      en: Task name
+    description: The name of the work item.
+  - id: task-project
+    kind: attribute
+    of: task
+    labels:
+      en: Task project
+    description: A project containing this work item.
+    values-of: project
+  - id: task-assignee
+    kind: attribute
+    of: task
+    labels:
+      en: Task assignee
+    description: A person assigned to perform the work.
+    values-of: person
+  - id: task-asset
+    kind: attribute
+    of: task
+    labels:
+      en: Task asset
+    description: An asset on which the work is performed.
+    values-of: asset
+  - id: task-evidence-document
+    kind: attribute
+    of: task
+    labels:
+      en: Task evidence document
+    description: A document used as evidence when performing or reviewing the work.
+    values-of: document
+  - id: task-observation
+    kind: attribute
+    of: task
+    labels:
+      en: Task observation
+    description: An observation informing the work.
+    values-of: observation
+  - id: event
+    kind: entity
+    labels:
+      en: Event
+    description: An occurrence or planned gathering at a time and place; distinct
+      from its reservation or organizing project.
+  - id: event-name
+    kind: attribute
+    of: event
+    labels:
+      en: Event name
+    description: The name of the occurrence.
+  - id: event-start
+    kind: attribute
+    of: event
+    labels:
+      en: Event start
+    description: The start date and time, interpreted with its stated time zone or offset.
+  - id: event-end
+    kind: attribute
+    of: event
+    labels:
+      en: Event end
+    description: The end date and time, interpreted with its stated time zone or offset.
+  - id: event-time-zone
+    kind: attribute
+    of: event
+    labels:
+      en: Event time zone
+    description: The named civil time rules for event times.
+    values-of: time-zone
+  - id: event-place
+    kind: attribute
+    of: event
+    labels:
+      en: Event place
+    description: A location at which the event occurs.
+    values-of: place
+  - id: event-organizer
+    kind: attribute
+    of: event
+    labels:
+      en: Event organizer
+    description: An organization coordinating the event.
+    values-of: organization
+  - id: event-asset
+    kind: attribute
+    of: event
+    labels:
+      en: Event asset
+    description: An asset used in the event.
+    values-of: asset
+  - id: reservation
+    kind: entity
+    labels:
+      en: Reservation
+    description: An arrangement setting aside a resource or place for a time
+      interval; distinct from the event using it.
+  - id: reservation-reference
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation reference
+    description: The identifier of the reservation.
+  - id: reservation-place
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation place
+    description: A location set aside by the arrangement.
+    values-of: place
+  - id: reservation-event
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation event
+    description: An event served by the arrangement.
+    values-of: event
+  - id: reservation-start
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation start
+    description: The beginning of the reserved interval.
+  - id: reservation-end
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation end
+    description: The end of the reserved interval.
+  - id: reservation-time-zone
+    kind: attribute
+    of: reservation
+    labels:
+      en: Reservation time zone
+    description: The named civil time rules for reservation times.
+    values-of: time-zone
+  - id: document
+    kind: entity
+    labels:
+      en: Document
+    description: An identifiable body of recorded information, which can provide
+      evidence without being the agreement or activity itself.
+  - id: document-title
+    kind: attribute
+    of: document
+    labels:
+      en: Document title
+    description: The title of the recorded information.
+  - id: document-reference
+    kind: attribute
+    of: document
+    labels:
+      en: Document reference
+    description: The identifier used to retrieve the document.
+  - id: document-revision
+    kind: attribute
+    of: document
+    labels:
+      en: Document revision
+    description: The revision designation of this document record.
+  - id: document-subject-asset
+    kind: attribute
+    of: document
+    labels:
+      en: Document subject asset
+    description: An asset described by the document.
+    values-of: asset
+  - id: document-media-type
+    kind: attribute
+    of: document
+    labels:
+      en: Document media type
+    description: The media type of the document representation.
+  - id: observation
+    kind: entity
+    labels:
+      en: Observation
+    description: A recorded finding about a subject at a time; it does not by itself
+      establish failure, diagnosis or a safety limit.
+  - id: observation-subject-asset
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation subject asset
+    description: The asset to which the finding refers.
+    values-of: asset
+  - id: observation-observed-at
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation observed at
+    description: The date and time at which the finding was observed.
+  - id: observation-description
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation description
+    description: The finding recorded about the subject.
+  - id: observation-value
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation value
+    description: The recorded value of the observed characteristic.
+  - id: observation-unit
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation unit
+    description: The unit used for the recorded value.
+  - id: observation-observer
+    kind: attribute
+    of: observation
+    labels:
+      en: Observation observer
+    description: A person making the observation.
+    values-of: person
+  - id: order-contract
+    kind: attribute
+    of: order
+    labels:
+      en: Order contract
+    description: An agreement governing the requested supply.
+    values-of: contract
+  - id: order-buyer-organization
+    kind: attribute
+    of: order
+    labels:
+      en: Order buyer organization
+    description: An organization requesting the supply.
+    values-of: organization
+  - id: order-line-order
+    kind: attribute
+    of: order-line
+    labels:
+      en: Order line order
+    description: The order carrying this line.
+    values-of: order
+  - id: order-line-product
+    kind: attribute
+    of: order-line
+    labels:
+      en: Order line product
+    description: The product requested on this line.
+    values-of: product
+  - id: order-line-service
+    kind: attribute
+    of: order-line
+    labels:
+      en: Order line service
+    description: The service requested on this line.
+    values-of: service
+  - id: order-line-quantity
+    kind: attribute
+    of: order-line
+    labels:
+      en: Order line quantity
+    description: The number of units requested on this order line.
+  - id: invoice-order
+    kind: attribute
+    of: invoice
+    labels:
+      en: Invoice order
+    description: An order providing context for this invoice.
+    values-of: order
+  - id: invoice-currency
+    kind: attribute
+    of: invoice
+    labels:
+      en: Invoice currency
+    description: The recorded currency of the invoice total.
+    values-of: currency
+  - id: organization-unit
+    kind: attribute
+    of: organization
+    labels:
+      en: Organization unit
+    description: A subdivision of the organization.
+    values-of: organizational-unit
+  - id: person-team
+    kind: attribute
+    of: person
+    labels:
+      en: Person team
+    description: A team in which the person participates.
+    values-of: team
+  - id: payment-obligation-outstanding-amount
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: payment obligation outstanding amount
+    description: The unpaid amount remaining at the observation time of a balance snapshot.
+    extends: money-amount
+  - id: payment-obligation-balance-as-of
+    kind: attribute
+    of: payment-obligation
+    labels:
+      en: payment obligation balance as of
+    description: The date and time at which the outstanding balance was recorded.
+  - id: payment-related-obligation
+    kind: attribute
+    of: payment
+    labels:
+      en: Payment related obligation
+    description: An obligation to which this payment relates; allocation amounts and
+      many-to-many reconciliation belong in the consuming data model.
+    values-of: payment-obligation
