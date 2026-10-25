@@ -18,7 +18,7 @@ formats, exact resolution and release boundary.
 |---|---|---|---|---|
 | `adventureworks` | `meaning://github.com/demo-db/adventureworks` | [demo-db/adventureworks@c91e06e](https://github.com/demo-db/adventureworks/tree/c91e06e9c12380e7709f66ab1e69cf7f858f67c1) | dataset | draft |
 | `chinook` | `meaning://github.com/demo-db/chinook` | [demo-db/chinook@3e7bb31](https://github.com/demo-db/chinook/tree/3e7bb316d8a438eb7e5930067997a4e4543a275c) | dataset | draft |
-| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@25242a6](https://github.com/meaninggraph/core/tree/25242a6c84d1b8d4799c718ef237944a429835ba) | universal | draft |
+| `core` | `meaning://github.com/meaninggraph/core` | [meaninggraph/core@97c4d2d](https://github.com/meaninggraph/core/tree/97c4d2d7459c0fcac4835678bac1d8653d7d98d1) | universal | draft |
 | `countries` | `meaning://github.com/demo-db/countries` | [demo-db/countries@dec4fa9](https://github.com/demo-db/countries/tree/dec4fa9798bc6118328156cd8abaf3803d0cba2f) | dataset | draft |
 | `ecb-daily` | `meaning://github.com/openvaultdb/ovdb` | [openvaultdb/ovdb@2a444f2](https://github.com/openvaultdb/ovdb/tree/2a444f29df25ca81ecf83739aeb2441979c12d6f) | dataset | draft |
 | `employees` | `meaning://github.com/demo-db/employees` | [demo-db/employees@add7744](https://github.com/demo-db/employees/tree/add7744ddc5cefc535a7cbb09b3dffee41811ade) | dataset | draft |
