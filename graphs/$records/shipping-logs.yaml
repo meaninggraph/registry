@@ -1,0 +1,19 @@
+format: meaning-registry/draft-1
+title: Shipping log observations
+description: >-
+  Immutable synthetic JSONL observations with baseline, carrier-gateway simulation and future recovery-example classifications kept separate. Semantic identifiers link to the Shipping companion without creating cross-database foreign keys.
+kind: dataset
+status: draft
+homepage: https://shipping-logs.demodb.dev/model/
+address: meaning://github.com/demo-db/shipping-logs
+repository: https://github.com/demo-db/shipping-logs
+commit: 9322a1b42726166e136dc9d5181393a1ec70cc76
+meaning_files:
+  - model/shipping-logs.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/shipping-logs.modelspec.hcl
+  - model/shipping-logs.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok

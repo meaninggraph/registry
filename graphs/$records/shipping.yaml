@@ -1,0 +1,19 @@
+format: meaning-registry/draft-1
+title: Shipping requests and routing
+description: >-
+  The synthetic Northwind shipping companion: requests, processing attempts, routing configurations, carrier assignments, message handoffs and indexed event evidence. No real carrier call or physical delivery is represented.
+kind: dataset
+status: draft
+homepage: https://shipping.demodb.dev/model/
+address: meaning://github.com/demo-db/shipping
+repository: https://github.com/demo-db/shipping
+commit: 03a158c07bb726ac2c4ad7f524bddf696ac2e6bb
+meaning_files:
+  - model/shipping.meaning.yaml
+meaning_licence: CC0-1.0
+model_files:
+  - model/shipping.modelspec.hcl
+  - model/shipping.modelspec.json
+model_licence: CC0-1.0
+maintainers:
+  - trakhimenok
