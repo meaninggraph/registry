@@ -1,0 +1,3 @@
+graph: shipping-logs
+depends_on: shipping
+commit: 03a158c07bb726ac2c4ad7f524bddf696ac2e6bb

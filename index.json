@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:2ea5697b6148610ae4dde1d3600d90a9a23155e1d27c123e432cb1991fa8b1ce",
+  "checksum": "sha256:41dc8d7c5081b72ae6ad7f1d02a970b116118c4029dae4bfee443f63b4e07414",
   "graphs": [
     {
       "id": "adventureworks",
@@ -315,6 +315,70 @@
         {
           "id": "core",
           "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
+      "id": "shipping",
+      "format": "meaning-registry/draft-1",
+      "title": "Shipping requests and routing",
+      "description": "The synthetic Northwind shipping companion: requests, processing attempts, routing configurations, carrier assignments, message handoffs and indexed event evidence. No real carrier call or physical delivery is represented.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://shipping.demodb.dev/model/",
+      "address": "meaning://github.com/demo-db/shipping",
+      "repository": "https://github.com/demo-db/shipping",
+      "commit": "03a158c07bb726ac2c4ad7f524bddf696ac2e6bb",
+      "meaning_files": [
+        "model/shipping.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/shipping.modelspec.hcl",
+        "model/shipping.modelspec.json"
+      ],
+      "model_licence": "CC0-1.0",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        }
+      ]
+    },
+    {
+      "id": "shipping-logs",
+      "format": "meaning-registry/draft-1",
+      "title": "Shipping log observations",
+      "description": "Immutable synthetic JSONL observations with baseline, carrier-gateway simulation and future recovery-example classifications kept separate. Semantic identifiers link to the Shipping companion without creating cross-database foreign keys.",
+      "kind": "dataset",
+      "status": "draft",
+      "homepage": "https://shipping-logs.demodb.dev/model/",
+      "address": "meaning://github.com/demo-db/shipping-logs",
+      "repository": "https://github.com/demo-db/shipping-logs",
+      "commit": "39a6b61126ea6c55fc1615ff078853a479834fb6",
+      "meaning_files": [
+        "model/shipping-logs.meaning.yaml"
+      ],
+      "meaning_licence": "CC0-1.0",
+      "model_files": [
+        "model/shipping-logs.modelspec.hcl",
+        "model/shipping-logs.modelspec.json"
+      ],
+      "model_licence": "CC0-1.0",
+      "maintainers": [
+        "trakhimenok"
+      ],
+      "depends": [
+        {
+          "id": "core",
+          "commit": "982916d73f0a35ff2558b0062f58aa3ac4f24d97"
+        },
+        {
+          "id": "shipping",
+          "commit": "03a158c07bb726ac2c4ad7f524bddf696ac2e6bb"
         }
       ]
     }
