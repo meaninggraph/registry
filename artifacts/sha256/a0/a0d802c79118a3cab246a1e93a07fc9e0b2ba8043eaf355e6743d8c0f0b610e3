@@ -1,0 +1,382 @@
+format: meaning/draft-1
+id: requirements
+name: Requirements
+description: >-
+  What a change is for: requirements, use cases, acceptance criteria,
+  stakeholders, business rules and the words they depend on.
+license: CC0-1.0
+concepts:
+  - id: stakeholder
+    kind: entity
+    labels:
+      en: Stakeholder
+    synonyms:
+      en: [interested party]
+    description: >-
+      A person, a group, or an organization with an interest in a change, a
+      need, or a solution. BABOK includes groups. A group that is a team is
+      recorded as the stakeholder's team, and an organization as the
+      stakeholder's organization. A stakeholder is not a kind of person,
+      because the interested party may be a team or an organization. The
+      user named in a user story may be a stakeholder and may not be the
+      only one. An employee may be a stakeholder and need not be.
+
+  - id: stakeholder-person
+    kind: attribute
+    of: stakeholder
+    labels:
+      en: Stakeholder person
+    description: >-
+      The person who is this stakeholder, when the interested party is a
+      person.
+    values-of: person
+
+  - id: stakeholder-organization
+    kind: attribute
+    of: stakeholder
+    labels:
+      en: Stakeholder organization
+    description: >-
+      The organization that is this stakeholder, when the interested party
+      is an organization.
+    values-of: organization
+
+  - id: stakeholder-team
+    kind: attribute
+    of: stakeholder
+    labels:
+      en: Stakeholder team
+    description: >-
+      The team that is this stakeholder, when the interested party is a
+      group rather than one person or a whole organization.
+    values-of: team
+
+  - id: requirement
+    kind: entity
+    labels:
+      en: Requirement
+    synonyms:
+      en: [requirement statement]
+    description: >-
+      A usable representation of a need. The classes are a business
+      requirement, which states why a change has been initiated, a
+      stakeholder requirement, which states what a stakeholder needs so that
+      can be achieved, a solution requirement, which states a capability or
+      quality of the solution as a functional or non-functional requirement,
+      and a transition requirement, which is needed only while moving to the
+      new state. A user story is a delivery work item whose text often
+      represents a stakeholder need. The story and this requirement are
+      linked when both are recorded, and they are not the same record. A use
+      case narrates an interaction and is not one of these classes. An
+      acceptance criterion is a condition for accepting a story, a
+      requirement, or a service. Work that delivers the requirement is a
+      work item, linked from the requirement.
+
+  - id: requirement-priority
+    kind: attribute
+    of: requirement
+    labels:
+      en: Requirement priority
+    description: >-
+      How important this requirement is relative to others. One scheme is
+      MoSCoW, which sorts requirements into must, should, could and won't.
+      That is a priority classification. It does not grade the severity of a
+      running failure or of a defect. A rank or another local scheme uses
+      this same attribute. The scheme is not fixed here, and priority is not
+      status.
+
+  - id: requirement-source
+    kind: attribute
+    of: requirement
+    labels:
+      en: Requirement source
+    description: >-
+      A stakeholder who raised or owns this requirement. The source is not
+      the user in every user story written from it.
+    values-of: stakeholder
+
+  - id: requirement-status
+    kind: attribute
+    of: requirement
+    labels:
+      en: Requirement status
+    description: >-
+      Where this requirement sits between being proposed and being satisfied
+      or dropped. The state names belong to the practice. Status is not
+      priority.
+
+  - id: requirement-work-item
+    kind: attribute
+    of: requirement
+    labels:
+      en: Requirement work item
+    synonyms:
+      en: [traced work item]
+    description: >-
+      A work item that delivers or checks this requirement. The link connects
+      the recorded need to the delivery work. The work item does not replace
+      the requirement, and a requirement can be met by more than one work
+      item.
+    values-of: work-item
+
+  - id: requirement-business-rule
+    kind: attribute
+    of: requirement
+    labels:
+      en: Requirement business rule
+    description: >-
+      A business rule this requirement is meant to uphold. The rule can
+      outlive the requirement, and the requirement is not the rule.
+    values-of: business-rule
+
+  - id: business-requirement
+    kind: entity
+    extends: requirement
+    labels:
+      en: Business requirement
+    description: >-
+      A requirement that states the goals, objectives, and outcomes for why
+      a change has been initiated. It can apply to the whole organization, a
+      business area, or one initiative. It is not a stakeholder requirement,
+      which states what a stakeholder needs so those outcomes can be
+      achieved, and it is not a functional requirement. It is not a user
+      story. A story may represent part of the need and remains a work item.
+
+  - id: stakeholder-requirement
+    kind: entity
+    extends: requirement
+    labels:
+      en: Stakeholder requirement
+    description: >-
+      A requirement that states what a stakeholder needs so the business
+      requirements can be achieved. It bridges business requirements and
+      solution requirements. It is not a business requirement and not a
+      solution requirement. A user story often represents one of these needs
+      and remains a work item, linked from the requirement when both are
+      recorded.
+
+  - id: solution-requirement
+    kind: entity
+    extends: requirement
+    labels:
+      en: Solution requirement
+    description: >-
+      A requirement that states a capability or a quality the solution must
+      have to meet the stakeholder requirements, in enough detail to build
+      and implement the solution. A functional requirement and a
+      non-functional requirement are kinds of solution requirement. It is
+      not a business requirement and not a transition requirement.
+
+  - id: functional-requirement
+    kind: entity
+    extends: solution-requirement
+    labels:
+      en: Functional requirement
+    description: >-
+      A solution requirement that states a capability the solution must
+      have: the behavior and information the solution will manage. It is not
+      a non-functional requirement, which states a condition or a quality
+      such as speed, security, or availability. It is not a business rule. A
+      rule constrains a decision whether or not this solution is built. It
+      is not a use case. A use case narrates the steps of an interaction
+      that may satisfy several functions.
+
+  - id: non-functional-requirement
+    kind: entity
+    extends: solution-requirement
+    labels:
+      en: Non-functional requirement
+    synonyms:
+      en: [nonfunctional requirement, quality of service requirement, NFR]
+    description: >-
+      A solution requirement that states a condition or quality of the
+      solution rather than a function a user invokes: how fast it is, how it
+      resists misuse, how available it is, how usable it is. BABOK also
+      calls these quality of service requirements. Availability stated as a
+      need is this kind of requirement. The measured availability of a
+      running service is a different concept, and so is a service level
+      objective, which is a target on a measurement. An objective may be how
+      a quality requirement is checked in production. The objective is not
+      the requirement.
+
+  - id: transition-requirement
+    kind: entity
+    extends: requirement
+    labels:
+      en: Transition requirement
+    description: >-
+      A requirement that states a capability or condition needed only to
+      move from the current state to the future state, such as converting
+      data, training people, or keeping work going during the move. It is
+      not needed once the change is complete. It is not a functional
+      requirement of the future solution.
+
+  - id: use-case
+    kind: entity
+    labels:
+      en: Use case
+    synonyms:
+      en: [use-case]
+    description: >-
+      A description of how an actor reaches a goal by interacting with a
+      system, including the main sequence and the alternatives. The actor
+      may be a person, an organization, or another system. A use case is not
+      a user story. The story is one backlog increment, while the use case
+      is the interaction and can span more than one increment. It is not one
+      of the requirement classes, though it may be written to show how
+      requirements are met. It is not a business process. A business process
+      is how the organization does a piece of work, whether or not that work
+      is one session with a system.
+
+  - id: use-case-actor
+    kind: attribute
+    of: use-case
+    labels:
+      en: Use case actor
+    synonyms:
+      en: [actor]
+    description: >-
+      The name of an actor in the use case. The actor may be a person, an
+      organization, or another system, so this attribute is the name in the
+      narrative rather than a reference to one kind of party. An actor need
+      not be a stakeholder, because another system can be an actor, and need
+      not be the only stakeholder of the requirements the use case touches.
+
+  - id: use-case-requirement
+    kind: attribute
+    of: use-case
+    labels:
+      en: Use case requirement
+    description: >-
+      A requirement this use case shows being met. The use case can touch
+      several requirements, and a requirement can be met without a use case
+      being written.
+    values-of: requirement
+
+  - id: acceptance-criterion
+    kind: entity
+    labels:
+      en: Acceptance criterion
+    synonyms:
+      en: [acceptance criteria]
+    description: >-
+      A condition that must be met before a user story, a requirement, or a
+      service is accepted. ITIL states acceptance criteria for a service or
+      a service component. Business analysis uses them for the minimum a
+      solution must meet to be acceptable to key stakeholders, and delivery
+      teams attach them to a user story. It is not the story text, not the
+      requirement, and not a flow inside a use case. It is not an evaluation
+      criterion, which ranks alternative solutions. One story or requirement
+      can have several criteria. The plural acceptance criteria is the same
+      concept.
+
+  - id: acceptance-criterion-user-story
+    kind: attribute
+    of: acceptance-criterion
+    labels:
+      en: Acceptance criterion user story
+    description:       The user story this condition is a check for, when it is attached to a
+      story.
+    values-of: user-story
+
+  - id: acceptance-criterion-requirement
+    kind: attribute
+    of: acceptance-criterion
+    labels:
+      en: Acceptance criterion requirement
+    description: >-
+      A requirement this condition is a check for, when it is attached to a
+      requirement rather than only to a story.
+    values-of: requirement
+
+  - id: acceptance-criterion-service
+    kind: attribute
+    of: acceptance-criterion
+    labels:
+      en: Acceptance criterion service
+    description: >-
+      A service this condition must be met for, when the criterion is stated
+      for the service rather than for one story.
+    values-of: service
+
+  - id: business-rule
+    kind: entity
+    labels:
+      en: Business rule
+    description: >-
+      A specific, practicable, testable directive under the control of the
+      business, which guides behavior or a decision. An example is a limit
+      above which a second person must approve. It holds whether or not a
+      particular solution is built. It is not a requirement. A requirement is
+      a usable representation of a need a solution is expected to meet,
+      though a requirement may exist so that a solution upholds a rule. It
+      is not an acceptance criterion, which checks a story, a requirement, or
+      a service.
+
+  - id: business-process
+    kind: entity
+    labels:
+      en: Business process
+    synonyms:
+      en: [business workflow]
+    description: >-
+      A repeatable way the organization carries out a piece of its work: a
+      sequence of steps with a reason to start and a result. It is not a use
+      case, which is one actor's interaction with a system, and not a
+      project, which is a temporary undertaking. Software can support a
+      process; the process is not a software component.
+
+  - id: process-step
+    kind: entity
+    of: business-process
+    labels:
+      en: Process step
+    description: >-
+      One part of a business process: a single action or decision in that
+      sequence. The step is not the whole process and not a work item on a
+      delivery backlog.
+
+  - id: process-step-business-process
+    kind: attribute
+    of: process-step
+    labels:
+      en: Process step business process
+    description: The business process this step is part of.
+    values-of: business-process
+
+  - id: glossary-term
+    kind: entity
+    labels:
+      en: Glossary term
+    synonyms:
+      en: [defined term]
+    description: >-
+      A word with a stated meaning for a business domain, so that
+      requirements, rules and processes use it in that meaning. It is not a
+      requirement and not a business rule. The term defines a word; a rule
+      constrains a decision.
+
+  - id: kpi
+    kind: entity
+    labels:
+      en: Key performance indicator
+    synonyms:
+      en: [KPI]
+    description: >-
+      A metric an organization has chosen to judge success in meeting an
+      objective. Which formula it uses is part of that choice, so a key
+      performance indicator is recorded as an entity and not as one measure
+      with a formula fixed here. It is not a service level indicator. A
+      service level indicator measures the behavior of a service. A key
+      performance indicator judges a business result. An organization can
+      watch either, and choosing one does not make it the other.
+
+  - id: kpi-business-process
+    kind: attribute
+    of: kpi
+    labels:
+      en: Key performance indicator business process
+    description: >-
+      A business process whose performance this indicator is used to judge,
+      when the indicator is about a process.
+    values-of: business-process

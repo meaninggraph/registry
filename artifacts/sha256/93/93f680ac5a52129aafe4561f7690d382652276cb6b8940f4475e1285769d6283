@@ -1,0 +1,357 @@
+format: meaning/draft-1
+id: software
+name: Software
+description: >-
+  What is built and run: applications and their parts, versions and builds,
+  environments, interfaces, source, accounts and logs.
+license: CC0-1.0
+concepts:
+  - id: software-application
+    kind: entity
+    labels:
+      en: Software application
+    synonyms:
+      en: [application, app]
+    description: >-
+      Software that people run. It may be offered outside the organization
+      or used only inside the organization that builds it. It is not a
+      product in this graph. A product is a type of good offered for supply.
+      It is not a software component, which is a part of an application, and
+      it is not one version, build, release, or deployment of the
+      application. It is not the service users are promised. The service is
+      the capability. An application may be what provides it.
+
+  - id: software-component
+    kind: entity
+    of: software-application
+    labels:
+      en: Software component
+    description: >-
+      A part of a software application, such as a module, a library or a
+      microservice that is deployed on its own. Calling a part a
+      microservice does not make it the service concept: a service is a
+      capability offered to another party, and a component is a piece of
+      software. A failing component may cause an incident on a service. The
+      component is still not that service, and it is not the application
+      taken as a whole.
+
+  - id: software-component-application
+    kind: attribute
+    of: software-component
+    labels:
+      en: Software component application
+    description: An application this component is a part of.
+    values-of: software-application
+
+  - id: software-component-owner-team
+    kind: attribute
+    of: software-component
+    labels:
+      en: Software component owner team
+    description: A team accountable for this component.
+    values-of: team
+
+  - id: software-version
+    kind: entity
+    labels:
+      en: Software version
+    synonyms:
+      en: [application version]
+    description: >-
+      An identified revision of a software application. A release uses a
+      version as the name of what it makes available. A version is not a
+      build. A build is one artifact produced from a commit, and building
+      the same sources again can produce another artifact of the same
+      version. A version is not a deployment and not an environment. The
+      version number may follow semantic versioning or another scheme; the
+      scheme is not part of the identity of this concept.
+
+  - id: software-version-number
+    kind: attribute
+    of: software-version
+    labels:
+      en: Software version number
+    synonyms:
+      en: [version number]
+    description: >-
+      The identifier people use for this version, in whatever scheme the
+      application uses. The number is not the release and not the build.
+
+  - id: software-version-application
+    kind: attribute
+    of: software-version
+    labels:
+      en: Software version application
+    description: The application this version is a revision of.
+    values-of: software-application
+
+  - id: environment
+    kind: entity
+    labels:
+      en: Environment
+    synonyms:
+      en: [runtime environment]
+    description: >-
+      A subset of infrastructure used for a particular purpose, where a
+      build runs. The usual kinds are development, test, staging, and
+      production. Development is where the software is changed. Test is
+      where it is checked. Staging is a production-like place used to
+      rehearse a release. Production is where the service's users are.
+      Organizations use other names and other counts, so those four kinds
+      are not a closed list. An environment is not a deployment into it and
+      not a release. Software that runs in development is not, by that fact,
+      running in production. The word can also mean external conditions.
+      This concept is the infrastructure used for a purpose.
+
+  - id: environment-type
+    kind: attribute
+    of: environment
+    labels:
+      en: Environment type
+    synonyms:
+      en: [environment kind]
+    description: >-
+      Which kind of place this environment is, in the organization's own
+      words. Development, test, staging and production are the usual kinds.
+      The attribute does not fix the vocabulary: a further kind, such as a
+      sandbox, is still an environment type.
+
+  - id: build
+    kind: entity
+    labels:
+      en: Build
+    synonyms:
+      en: [software build, build artifact]
+    description: >-
+      An artifact produced by building a commit: the bytes a deployment can
+      put into an environment. A build is not a software version, though a
+      team may store one identifier that is used for both, and it is not a
+      release or a deployment. Two builds can exist for one version when the
+      same sources are built again.
+
+  - id: build-commit
+    kind: attribute
+    of: build
+    labels:
+      en: Build commit
+    description: The commit this artifact was built from.
+    values-of: commit
+
+  - id: build-version
+    kind: attribute
+    of: build
+    labels:
+      en: Build version
+    description: >-
+      The software version this build is an artifact of, when the build is
+      identified with a version. A build of a commit that has not been given
+      a version leaves this empty.
+    values-of: software-version
+
+  - id: feature-flag
+    kind: entity
+    labels:
+      en: Feature flag
+    synonyms:
+      en: [feature toggle, feature switch]
+    description: >-
+      A switch in running software that changes behavior without another
+      deployment and without another release. The flag is usually shipped
+      in a deployment while it is off. Turning it on is a separate act and
+      is not itself a deployment. The same deployed build can behave
+      differently for different users, or in different environments. A flag
+      is not a version, not a build, and not an environment.
+
+  - id: feature-flag-application
+    kind: attribute
+    of: feature-flag
+    labels:
+      en: Feature flag application
+    description: The application whose running behavior this flag changes.
+    values-of: software-application
+
+  - id: feature-flag-environment
+    kind: attribute
+    of: feature-flag
+    labels:
+      en: Feature flag environment
+    description: >-
+      An environment in which this flag is set, when the flag is not the
+      same in every environment. The environment is where the software
+      runs; the flag is not that place.
+    values-of: environment
+
+  - id: api
+    kind: entity
+    labels:
+      en: API
+    synonyms:
+      en: [application programming interface]
+    description: >-
+      An interface through which one piece of software offers operations to
+      another. The API is the interface as a whole. One operation of it is
+      an API endpoint. An API is not a service, though a service may be
+      reached through one, and it is not a deployment of the software that
+      offers it.
+
+  - id: api-software-component
+    kind: attribute
+    of: api
+    labels:
+      en: API software component
+    description: The software component that offers this interface.
+    values-of: software-component
+
+  - id: api-endpoint
+    kind: entity
+    of: api
+    labels:
+      en: API endpoint
+    description: >-
+      One operation of an API. Where the API uses HTTP, the operation has a
+      method and a path. The endpoint is not the API as a whole and not a
+      deployment.
+
+  - id: api-endpoint-api
+    kind: attribute
+    of: api-endpoint
+    labels:
+      en: API endpoint API
+    description: The API this operation belongs to.
+    values-of: api
+
+  - id: api-endpoint-method
+    kind: attribute
+    of: api-endpoint
+    labels:
+      en: API endpoint method
+    description: >-
+      The method of the call. For an HTTP API this is the HTTP method, such
+      as GET or POST. The method is not the path, and not every API uses
+      HTTP methods.
+
+  - id: api-endpoint-path
+    kind: attribute
+    of: api-endpoint
+    labels:
+      en: API endpoint path
+    synonyms:
+      en: [endpoint path]
+    description: >-
+      The path of the operation, where the API identifies operations by a
+      path. The path is not the method.
+
+  - id: repository
+    kind: entity
+    labels:
+      en: Repository
+    synonyms:
+      en: [source repository, code repository, repo]
+    description: >-
+      A store of the source of software, holding the commits of that source.
+      It is not a build, not a release and not a document, though the source
+      it holds may include documents.
+
+  - id: repository-application
+    kind: attribute
+    of: repository
+    labels:
+      en: Repository application
+    description: >-
+      An application whose source this repository stores. One application
+      can have more than one repository.
+    values-of: software-application
+
+  - id: commit
+    kind: entity
+    of: repository
+    labels:
+      en: Commit
+    synonyms:
+      en: [code commit]
+    description: >-
+      A recorded revision of source in a repository. Lead time for changes
+      is measured from a commit. A commit is not a build: the build is an
+      artifact produced from a commit. It is not a pull request, which
+      proposes one or more commits, and it is not a release.
+
+  - id: commit-repository
+    kind: attribute
+    of: commit
+    labels:
+      en: Commit repository
+    description: The repository that holds this commit.
+    values-of: repository
+
+  - id: log-entry
+    kind: entity
+    labels:
+      en: Log entry
+    synonyms:
+      en: [log record, log line]
+    description: >-
+      One line written by running software into its log. It is not an alert.
+      An alert says a condition needs attention and may be raised because of
+      log entries; the line is not that alert. It is not an incident.
+
+  - id: log-entry-level
+    kind: attribute
+    of: log-entry
+    labels:
+      en: Log entry level
+    synonyms:
+      en: [log level]
+    description: >-
+      How the software classified this line, in the scheme that software
+      uses. Common grades run from a trace or debug line, through
+      information and a warning, to an error. The names and the number of
+      grades are not a closed list. A log level is not incident severity and
+      not bug severity: it classifies a line the software wrote, not the
+      impairment of a service and not a flaw on the backlog.
+
+  - id: log-entry-timestamp
+    kind: attribute
+    of: log-entry
+    labels:
+      en: Log entry timestamp
+    description: >-
+      The instant the line was written. It is not the instant an incident
+      was opened and not the instant an alert was acknowledged.
+
+  - id: log-entry-software-component
+    kind: attribute
+    of: log-entry
+    labels:
+      en: Log entry software component
+    description: The software component that wrote the line.
+    values-of: software-component
+
+  - id: user-account
+    kind: entity
+    labels:
+      en: User account
+    synonyms:
+      en: [login account]
+    description: >-
+      An identity an application accepts when someone signs in. It is not a
+      person: one person can hold several accounts, and an account can be
+      recorded before it is tied to a person. It is not an employee. It is
+      not a financial account.
+
+  - id: user-account-person
+    kind: attribute
+    of: user-account
+    labels:
+      en: User account person
+    description: >-
+      The person this account is tied to, when that person is known. The
+      account can exist without this link.
+    values-of: person
+
+  - id: user-account-application
+    kind: attribute
+    of: user-account
+    labels:
+      en: User account application
+    description: The application that accepts this account.
+    values-of: software-application
