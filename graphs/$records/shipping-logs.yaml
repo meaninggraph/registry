@@ -7,7 +7,7 @@ status: draft
 homepage: https://shipping-logs.demodb.dev/model/
 address: meaning://github.com/demo-db/shipping-logs
 repository: https://github.com/demo-db/shipping-logs
-commit: 39a6b61126ea6c55fc1615ff078853a479834fb6
+commit: 9322a1b42726166e136dc9d5181393a1ec70cc76
 meaning_files:
   - model/shipping-logs.meaning.yaml
 meaning_licence: CC0-1.0

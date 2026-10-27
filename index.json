@@ -1,6 +1,6 @@
 {
   "format": "meaning-registry/draft-1",
-  "checksum": "sha256:41dc8d7c5081b72ae6ad7f1d02a970b116118c4029dae4bfee443f63b4e07414",
+  "checksum": "sha256:6a3c6e22a65f5c654652ae4176d60807c20c3e555e8088ea7b5f9270202ee0c2",
   "graphs": [
     {
       "id": "adventureworks",
@@ -358,7 +358,7 @@
       "homepage": "https://shipping-logs.demodb.dev/model/",
       "address": "meaning://github.com/demo-db/shipping-logs",
       "repository": "https://github.com/demo-db/shipping-logs",
-      "commit": "39a6b61126ea6c55fc1615ff078853a479834fb6",
+      "commit": "9322a1b42726166e136dc9d5181393a1ec70cc76",
       "meaning_files": [
         "model/shipping-logs.meaning.yaml"
       ],
