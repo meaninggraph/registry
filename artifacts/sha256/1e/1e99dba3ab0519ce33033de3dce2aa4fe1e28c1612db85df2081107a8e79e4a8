@@ -1,0 +1,527 @@
+format: meaning/draft-1
+id: delivery
+name: Software delivery
+description: >-
+  How software work moves from a backlog to a running environment: work
+  items, iterations, releases, deployments and the measures of that flow.
+license: CC0-1.0
+concepts:
+  - id: work-item
+    kind: entity
+    extends: task
+    labels:
+      en: Work item
+    synonyms:
+      en: [backlog item]
+    description: >-
+      A task tracked on a delivery backlog. An epic, a user story, a delivery
+      task, a bug, a spike, and a technical-debt item are kinds of work item.
+      The general task is any assignable piece of work, including work that
+      is not on a delivery backlog. A technical step under a story is a
+      delivery task, not a second meaning of task. A work item is not a
+      support ticket. A requirement is a representation of a need. The work
+      item is delivery work that may satisfy that need, and a user story's
+      text often is that representation. When both are recorded, requirement
+      work item links them.
+
+  - id: work-item-status
+    kind: attribute
+    of: work-item
+    labels:
+      en: Work item status
+    description: >-
+      Where this work item sits in the team's workflow. The state names
+      belong to the team. Status is not priority, and it is not which sprint
+      the item is in.
+
+  - id: work-item-priority
+    kind: attribute
+    of: work-item
+    labels:
+      en: Work item priority
+    description: >-
+      The order in which a delivery team intends to pick up this work item
+      among the others. It is a planning decision. It is not bug severity,
+      which grades a flaw, and it is not requirement priority, which grades
+      a need. A bug is a work item, so it can carry a severity and this
+      priority at the same time.
+
+  - id: work-item-story-points
+    kind: attribute
+    of: work-item
+    labels:
+      en: Work item story points
+    synonyms:
+      en: [story points, story point estimate]
+    description: >-
+      A relative estimate of size for a work item. The Scrum Guide does not
+      define story points. Teams most often point a user story, and
+      sometimes a bug or a spike. The points are not hours, and a total is
+      not comparable across teams as a unit of time. An epic is usually left
+      unpointed, because its size is the items under it. Velocity is the sum
+      of points completed in one sprint. It is not this attribute on a
+      single item.
+    unit: story points
+
+  - id: work-item-parent
+    kind: attribute
+    of: work-item
+    labels:
+      en: Work item parent
+    synonyms:
+      en: [parent work item]
+    description: >-
+      A larger work item this one is split from, such as the epic of a user
+      story. The parent is not the project and not the sprint.
+    values-of: work-item
+
+  - id: work-item-sprint
+    kind: attribute
+    of: work-item
+    labels:
+      en: Work item sprint
+    description: >-
+      A sprint this work item is taken into. An item can move to a later
+      sprint; the sprint is not part of the item's identity. A team that
+      does not use sprints leaves this empty.
+    values-of: sprint
+
+  - id: epic
+    kind: entity
+    extends: work-item
+    labels:
+      en: Epic
+    description: >-
+      A work item larger than one delivery increment, split into smaller
+      work items such as user stories. The Scrum Guide does not define an
+      epic. Some writers call an epic a large user story before it is split.
+      In this graph the epic is the parent item, so it is not recorded as a
+      user story. It is not a sprint. A sprint is a time box, and an epic
+      can stay open across several of them. It is not a release. A release
+      is a version made available for use, and it may contain work from
+      several epics or from only part of one.
+
+  - id: user-story
+    kind: entity
+    extends: work-item
+    labels:
+      en: User story
+    synonyms:
+      en: [story]
+    description: >-
+      A work item for a small outcome valuable to a user, often told as who
+      wants what and why. It is not the epic it was split from. A technical
+      step under the story is a delivery task. It is not a use case. A use
+      case narrates how an actor reaches a goal, with a main flow and
+      alternatives, and is not itself a backlog item. The story's text is
+      often a usable representation of a stakeholder need. In this graph the
+      requirement is that representation when it is recorded on its own, and
+      this story is the delivery item. Link them with requirement work item
+      when both exist. The story is not an acceptance criterion. A criterion
+      is a condition for accepting the story, a requirement, or a service.
+
+  - id: delivery-task
+    kind: entity
+    extends: work-item
+    labels:
+      en: Delivery task
+    synonyms:
+      en: [implementation task, sprint task]
+    description: >-
+      A work item for a technical step that carries out part of a user story
+      or another backlog item. Planning conversations often call this step a
+      task. This graph already uses task for any assignable piece of work,
+      and a user story and an epic are kinds of task, so this concept is the
+      step under a story rather than another name for every task. It does
+      not by itself promise an outcome a user receives, so it is not a user
+      story. It is not a spike. A spike's result is knowledge, inside the
+      spike's own time box.
+
+  - id: bug
+    kind: entity
+    extends: work-item
+    labels:
+      en: Bug
+    synonyms:
+      en: [defect, software defect, software bug]
+    description: >-
+      A flaw in software, recorded as a work item so it can be corrected.
+      Defect is another name for this same flaw. Testing glossaries treat
+      bug, defect, and fault as that flaw in a work product. Some
+      organizations also use defect for a flaw found after release and bug
+      for one found before. That split records when it was found, so both
+      words still name this concept. A bug is not an incident. The incident
+      is an unplanned interruption of a running service, which a bug may
+      cause. Many bugs are found before they harm anyone, and an incident
+      can have a cause other than a bug. A bug is not technical debt. Debt
+      can meet its specification and still make later change expensive. A
+      failure is a loss of ability to operate to specification or to deliver
+      the required outcome. The word error is not a synonym: ITIL uses it
+      for a flaw or vulnerability that may cause incidents, software testing
+      uses it for the human mistake that introduces a defect, and
+      dependability writing uses it for a wrong internal state. A known
+      error is a problem that has been analysed, not a name for this flaw.
+
+  - id: bug-severity
+    kind: attribute
+    of: bug
+    labels:
+      en: Bug severity
+    synonyms:
+      en: [defect severity]
+    description: >-
+      How far the software's behavior departs from what was specified or
+      expected, from data loss or a crash to a cosmetic miss. It grades the
+      flaw. It does not say when a team will fix it; that order is the work
+      item's priority. Incident severity grades impairment of a running
+      service and is a different attribute. One flaw can have a bug severity
+      and, once it hurts a service, an incident severity as well.
+
+  - id: bug-steps-to-reproduce
+    kind: attribute
+    of: bug
+    labels:
+      en: Bug steps to reproduce
+    synonyms:
+      en: [steps to reproduce]
+    description: >-
+      The sequence a person follows to make the flaw appear. It is evidence
+      on the bug, not the severity and not the correction.
+
+  - id: technical-debt-item
+    kind: entity
+    extends: work-item
+    labels:
+      en: Technical debt item
+    synonyms:
+      en: [technical debt, tech debt]
+    description: >-
+      A work item that records a shortcut, a workaround left in place, or a
+      design that has aged, where the cost appears as slower or riskier
+      change later. The software may meet its requirements, so this is not a
+      bug and not a defect. It is not an incident: nothing has to be failing
+      now. It is scheduled with a priority, like any other work item.
+
+  - id: spike
+    kind: entity
+    extends: work-item
+    labels:
+      en: Spike
+    synonyms:
+      en: [research spike]
+    description: >-
+      A time-boxed work item whose result is knowledge: an answer that
+      unblocks an estimate or a design. The practice comes from Extreme
+      Programming and is used with Scrum. The Scrum Guide does not define
+      it. It does not promise an outcome a user receives, so it is not a
+      user story. It is not a bug. The time box belongs to the spike. A
+      sprint is the team's iteration and is not another name for a spike.
+
+  - id: sprint
+    kind: entity
+    labels:
+      en: Sprint
+    synonyms:
+      en: [scrum sprint]
+    description: >-
+      A fixed-length iteration in which a team takes on a set of work items.
+      In Scrum a sprint lasts at most one month. It has a start day and an
+      end day. Work left unfinished stays a work item. It does not become a
+      property of the sprint. A sprint may be run inside a project and may
+      be recorded with none. The Scrum Guide does not make a sprint a part
+      of a project, and it does not define story points or velocity. A
+      sprint is not a release and not a deployment.
+
+  - id: sprint-project
+    kind: attribute
+    of: sprint
+    labels:
+      en: Sprint project
+    description: >-
+      The project this sprint is part of, when the team runs it inside a
+      project. A sprint can be recorded with no project.
+    values-of: project
+
+  - id: sprint-start
+    kind: attribute
+    of: sprint
+    extends: date
+    labels:
+      en: Sprint start
+    description: The calendar day the sprint starts.
+
+  - id: sprint-end
+    kind: attribute
+    of: sprint
+    extends: date
+    labels:
+      en: Sprint end
+    description: The calendar day the sprint ends.
+
+  - id: release
+    kind: entity
+    labels:
+      en: Release
+    synonyms:
+      en: [software release]
+    description: >-
+      A version made available for use. For software, release version names
+      that version. A release of a service, with no software version, leaves
+      the version empty. The same release can be deployed more than once and
+      into more than one environment. A release is not a deployment, not a
+      build, and not an environment. It is not a sprint. A feature flag can
+      change what users see of a release that is already deployed, without
+      making another release.
+
+  - id: release-version
+    kind: attribute
+    of: release
+    labels:
+      en: Release version
+    description: >-
+      The software version this release makes available. The version
+      identifies the software; the release is the decision to offer it.
+    values-of: software-version
+
+  - id: release-work-item
+    kind: attribute
+    of: release
+    labels:
+      en: Release work item
+    description: >-
+      A work item included in this release. The work item is not the
+      release, and a deployment of the release is a further fact.
+    values-of: work-item
+
+  - id: deployment
+    kind: entity
+    labels:
+      en: Deployment
+    synonyms:
+      en: [software deployment]
+    description: >-
+      The act of putting a build into an environment. The same release can
+      be deployed many times, and a deployment can fail to reach the
+      environment while the release still exists. A deployment is not a
+      release, not a version, and not the environment it targets. It is not
+      a change request. The change request is the proposal, and a deployment
+      is one way that proposal is carried out. Putting bytes into an
+      environment is not the same as showing new behavior to users. A
+      feature flag can do that with no further deployment. Whether the
+      deployment reached the environment, and whether it then required
+      remediation, is the deployment outcome.
+
+  - id: deployment-environment
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment environment
+    description: >-
+      The environment the build is put into. A deployment to staging and a
+      deployment to production are different deployments even when they
+      carry the same release.
+    values-of: environment
+
+  - id: deployment-date
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment date
+    description: >-
+      When the deployment was carried out. The record may be a calendar day
+      or an instant. It is not the identity of the release and not the
+      version number.
+
+  - id: deployment-release
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment release
+    description: >-
+      The release this deployment puts into an environment, when the
+      deployment is of a named release. Deploying a build that was never
+      named as a release leaves this empty.
+    values-of: release
+
+  - id: deployment-build
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment build
+    description:       The build that was put into the environment.
+    values-of: build
+
+  - id: deployment-outcome
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment outcome
+    description: >-
+      What this deployment did: whether it reached the target environment,
+      and whether the service then had to be remediated, for example by a
+      rollback or a follow-up fix. A deployment that never reaches
+      production is not counted in deployment frequency and is not a change
+      failure. A deployment that reaches production and degrades the service
+      is counted in the frequency and in the change failure rate. The
+      outcome of one deployment is not either of those rates.
+
+  - id: deployment-change-request
+    kind: attribute
+    of: deployment
+    labels:
+      en: Deployment change request
+    description: >-
+      The change request this deployment carries out, when one is recorded.
+      A deployment can have no change request, and a change can be carried
+      out by something other than a deployment.
+    values-of: change-request
+
+  - id: pull-request
+    kind: entity
+    labels:
+      en: Pull request
+    synonyms:
+      en: [merge request]
+    description: >-
+      A proposal to bring one or more commits into a line of development. A
+      merge request is that same proposal under another tool's name. The
+      proposal is not a code review: the review is an examination of it, and
+      one proposal can have several reviews. It is not a change request,
+      which judges a change to a service, and it is not a deployment.
+
+  - id: pull-request-repository
+    kind: attribute
+    of: pull-request
+    labels:
+      en: Pull request repository
+    description: The repository whose line of development the proposal targets.
+    values-of: repository
+
+  - id: code-review
+    kind: entity
+    of: pull-request
+    labels:
+      en: Code review
+    description: >-
+      An examination of a pull request by a person, recorded as remarks or a
+      decision. The review is not the pull request. Several reviews can
+      belong to one pull request.
+
+  - id: code-review-pull-request
+    kind: attribute
+    of: code-review
+    labels:
+      en: Code review pull request
+    description: The pull request this review examines.
+    values-of: pull-request
+
+  - id: velocity
+    kind: measure
+    of: sprint
+    labels:
+      en: Velocity
+    synonyms:
+      en: [sprint velocity]
+    description: >-
+      The sum of story points on the work items a team completed in one
+      sprint. The Scrum Guide does not define velocity. It is a planning aid
+      for that team. It is not a count of hours, not deployment frequency,
+      and not a unit that can be compared across teams as time. Adding the
+      velocities of several sprints does not produce a larger velocity. The
+      reading belongs to one sprint. Velocity is not a DORA delivery metric.
+    unit: story points per sprint
+    measure:
+      formula: >-
+        The sum of the story points of the work items completed in the sprint.
+      aggregation: none
+      inputs: [work-item-story-points]
+
+  - id: cycle-time
+    kind: measure
+    labels:
+      en: Cycle time
+    description: >-
+      The elapsed time from when work starts on a work item until that work
+      is finished. It is not lead time for changes, which runs from a commit
+      until the change is running in production. It is not the wait from a
+      request arriving until delivery; that longer interval is sometimes
+      also called lead time, and it is not this measure. The length of a
+      sprint is not a cycle time.
+    measure:
+      formula: >-
+        For a finished work item, the elapsed time from the start of work
+        until the work is finished. A figure for a team over a window is
+        recomputed from the items in that window.
+      aggregation: none
+
+  - id: deployment-frequency
+    kind: measure
+    labels:
+      en: Deployment frequency
+    description: >-
+      How often changes are successfully deployed to production, as a count
+      per unit of time over a stated window. This is one of DORA's software
+      delivery metrics, with lead time for changes, change failure rate, and
+      failed deployment recovery time. A deployment that does not reach
+      production is not counted. A deployment that reaches production and
+      later needs remediation is still counted. The share that needs
+      remediation is the change failure rate. One named release can be
+      deployed more than once, so this counts deployments. A release to end
+      users with no separate deployment, such as turning a feature flag on,
+      counts when the team treats that release as the production release,
+      and is not counted again when it is the same event as a deployment.
+    measure:
+      formula: >-
+        The number of deployments that reached production in the window,
+        divided by the length of the window. A deployment that never reaches
+        production is excluded. Recomputed for the window.
+      aggregation: none
+
+  - id: lead-time-for-changes
+    kind: measure
+    labels:
+      en: Lead time for changes
+    synonyms:
+      en: [change lead time]
+    description: >-
+      How long a change takes from a commit until it is deployed in
+      production. This is one of DORA's software delivery metrics. The clock
+      ends at the production deployment, not when a feature flag later
+      exposes the change and not when a customer first asked for it. Over a
+      window, this measure is the median of those durations, which is how
+      the Four Keys measurement summarizes them. DORA's survey asks for the
+      typical time. A mean of the same durations is a different summary and
+      is not this measure. The interval is not cycle time, which starts when
+      work starts rather than at the commit, and it is not the time from a
+      customer request until delivery. Both of those are sometimes called
+      lead time. This concept is only commit to production deployment. It
+      is not deployment frequency.
+    measure:
+      formula: >-
+        The median, over changes deployed to production in the window, of the
+        elapsed time from the commit until that production deployment.
+      aggregation: none
+
+  - id: change-failure-rate
+    kind: measure
+    labels:
+      en: Change failure rate
+    description: >-
+      The proportion of production deployments, including releases to users
+      that the team counts as deployments, that degrade the service and need
+      remediation such as a hotfix, a rollback, or a fix forward. A bug
+      found before production is outside the rate. So is an incident that a
+      deployment did not cause, and a pipeline run that never reached
+      production. DORA's later deployment rework rate, the proportion of
+      deployments that are unplanned work to fix defects, is not this rate.
+      This is one of DORA's software delivery metrics. It is not deployment
+      frequency, which is a count of deployments that reached production,
+      per unit of time.
+    unit: proportion
+    measure:
+      formula: >-
+        The number of production deployments in the window that degrade the
+        service and require remediation, divided by the number of production
+        deployments in that window. A deployment that never reaches
+        production is in neither count. Recomputed for the window.
+      aggregation: none
