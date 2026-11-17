@@ -32,13 +32,13 @@ jobs:
     timeout-minutes: 10
     env:
       # 'true' when at least one token exists (compared here, so no secret is copied into a step)
-      HAS_ANY_TOKEN: ${{ secrets.SITES_TRIGGER_TOKEN_SNEAT_CO != '' || secrets.SITES_TRIGGER_TOKEN_SPECSCORE != '' }}
+      HAS_ANY_TOKEN: ${{ secrets.SITES_TRIGGER_TOKEN_MEANINGGRAPH != '' || secrets.SITES_TRIGGER_TOKEN_SPECSCORE != '' }}
     steps:
       - name: Skipped, no token
         if: env.HAS_ANY_TOKEN != 'true'
         run: |
-          echo "::notice::No site token secret (SITES_TRIGGER_TOKEN_SNEAT_CO, SITES_TRIGGER_TOKEN_SPECSCORE): the sites were not notified."
-          echo "Sites not notified: no site token secret (SITES_TRIGGER_TOKEN_SNEAT_CO, SITES_TRIGGER_TOKEN_SPECSCORE)." >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::No site token secret (SITES_TRIGGER_TOKEN_MEANINGGRAPH, SITES_TRIGGER_TOKEN_SPECSCORE): the sites were not notified."
+          echo "Sites not notified: no site token secret (SITES_TRIGGER_TOKEN_MEANINGGRAPH, SITES_TRIGGER_TOKEN_SPECSCORE)." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.HAS_ANY_TOKEN == 'true'
         with:
@@ -50,6 +50,6 @@ jobs:
       - name: Start the Deploy workflow of each site
         if: env.HAS_ANY_TOKEN == 'true'
         env:
-          SITES_TRIGGER_TOKEN_SNEAT_CO: ${{ secrets.SITES_TRIGGER_TOKEN_SNEAT_CO }}
+          SITES_TRIGGER_TOKEN_MEANINGGRAPH: ${{ secrets.SITES_TRIGGER_TOKEN_MEANINGGRAPH }}
           SITES_TRIGGER_TOKEN_SPECSCORE: ${{ secrets.SITES_TRIGGER_TOKEN_SPECSCORE }}
         run: node scripts/notify-sites.mjs

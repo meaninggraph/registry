@@ -12,7 +12,7 @@ import { GH_TIMEOUT_MS, SECRET_NAME, ghArguments, notifyAll, reasonText, redact,
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const REPOSITORY = 'meaninggraph/registry';
-const SITES = [{ repo: 'sneat-co/meaninggraph', secret: 'SITES_TRIGGER_TOKEN_SNEAT_CO' }, { repo: 'specscore/modelspec', secret: 'SITES_TRIGGER_TOKEN_SPECSCORE' }];
+const SITES = [{ repo: 'meaninggraph/meaninggraph', secret: 'SITES_TRIGGER_TOKEN_MEANINGGRAPH' }, { repo: 'specscore/modelspec', secret: 'SITES_TRIGGER_TOKEN_SPECSCORE' }];
 const SECRETS = [...new Set(SITES.map(site => site.secret))];
 const SHA = '0123456789abcdef0123456789abcdef01234567';
 const TOKENS = Object.fromEntries(SECRETS.map((name, i) => [name, `ghp_TESTTOKEN${i}0123456789abcdef`]));
