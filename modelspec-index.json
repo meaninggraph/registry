@@ -1,6 +1,6 @@
 {
   "format": "modelspec-registry/draft-1",
-  "checksum": "sha256:0b13054051c7639b386761d60d84f0fb0f0103cff6e4c2e69b3e3a05ace09305",
+  "checksum": "sha256:8b39049d99965d53e9b72e4412fcf620ed1e8981013b5500d41092aea60df4a7",
   "models": [
     {
       "id": "adventureworks",
@@ -3712,7 +3712,7 @@
       "homepage": "https://chinook.demodb.dev/model/",
       "address": "modelspec://github.com/demo-db/chinook/chinook",
       "repository": "https://github.com/demo-db/chinook",
-      "commit": "3e7bb316d8a438eb7e5930067997a4e4543a275c",
+      "commit": "066fdbfe7bcd623209ecb734c8d3d346eb756d77",
       "module": "chinook",
       "module_id": "github.com/demo-db/chinook/model/chinook",
       "module_version": "0.1.0",
