@@ -1,0 +1,265 @@
+{
+  "modelspec": "1.0-draft-2",
+  "module": {
+    "id": "shipping",
+    "name": "shipping",
+    "version": "0.1.0"
+  },
+  "records": {
+    "assignments": {
+      "key": [
+        "assignment_id"
+      ],
+      "fields": {
+        "assignment_id": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "required": true,
+          "record": "attempts"
+        },
+        "partner_id": {
+          "required": true,
+          "record": "partners"
+        },
+        "accepted_at": {
+          "required": true,
+          "type": "string"
+        },
+        "deduplication_key": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "attempts": {
+      "key": [
+        "attempt_id"
+      ],
+      "fields": {
+        "attempt_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "required": true,
+          "record": "requests"
+        },
+        "attempt_no": {
+          "required": true,
+          "type": "int"
+        },
+        "config_revision": {
+          "required": true,
+          "record": "configurations"
+        },
+        "started_at": {
+          "required": true,
+          "type": "string"
+        },
+        "state": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "configurations": {
+      "key": [
+        "revision"
+      ],
+      "fields": {
+        "revision": {
+          "type": "int"
+        },
+        "published_at": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "events": {
+      "key": [
+        "event_id"
+      ],
+      "fields": {
+        "event_id": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "required": true,
+          "record": "attempts"
+        },
+        "sequence": {
+          "required": true,
+          "type": "int"
+        },
+        "kind": {
+          "required": true,
+          "type": "string"
+        },
+        "occurred_at": {
+          "required": true,
+          "type": "string"
+        },
+        "clock_domain": {
+          "required": true,
+          "type": "string"
+        },
+        "precision_ms": {
+          "required": true,
+          "type": "int"
+        },
+        "artifact": {
+          "required": true,
+          "type": "string"
+        },
+        "byte_start": {
+          "required": true,
+          "type": "int"
+        },
+        "byte_end": {
+          "required": true,
+          "type": "int"
+        },
+        "artifact_sha256": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "partners": {
+      "key": [
+        "partner_id"
+      ],
+      "fields": {
+        "partner_id": {
+          "type": "string"
+        },
+        "enabled": {
+          "required": true,
+          "type": "int"
+        }
+      }
+    },
+    "publications": {
+      "key": [
+        "publication_id"
+      ],
+      "fields": {
+        "publication_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "required": true,
+          "record": "requests"
+        },
+        "message_id": {
+          "required": true,
+          "type": "string"
+        },
+        "acknowledged_at": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "receipts": {
+      "key": [
+        "receipt_id"
+      ],
+      "fields": {
+        "receipt_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "required": true,
+          "record": "requests"
+        },
+        "message_id": {
+          "required": true,
+          "type": "string"
+        },
+        "received_at": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "requests": {
+      "key": [
+        "request_id"
+      ],
+      "fields": {
+        "request_id": {
+          "type": "string"
+        },
+        "order_id": {
+          "required": true,
+          "type": "int"
+        },
+        "shipper_id": {
+          "required": true,
+          "type": "int"
+        },
+        "message_id": {
+          "required": true,
+          "type": "string"
+        },
+        "correlation_id": {
+          "required": true,
+          "type": "string"
+        },
+        "created_at": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    },
+    "routes": {
+      "key": [
+        "route_id"
+      ],
+      "fields": {
+        "route_id": {
+          "type": "string"
+        },
+        "revision": {
+          "required": true,
+          "record": "configurations"
+        },
+        "shipper_id": {
+          "required": true,
+          "type": "int"
+        },
+        "partner_id": {
+          "required": true,
+          "record": "partners"
+        },
+        "valid_from": {
+          "required": true,
+          "type": "string"
+        },
+        "valid_until": {
+          "type": "string"
+        }
+      }
+    },
+    "workspace_state": {
+      "key": [
+        "generation"
+      ],
+      "fields": {
+        "generation": {
+          "type": "string"
+        },
+        "current_config": {
+          "required": true,
+          "type": "int"
+        },
+        "business_clock": {
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  }
+}
