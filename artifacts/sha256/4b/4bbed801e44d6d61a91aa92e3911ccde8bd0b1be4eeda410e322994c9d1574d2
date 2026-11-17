@@ -1,0 +1,353 @@
+{
+  "format": "meaning/draft-1",
+  "id": "shipping",
+  "name": "Shipping",
+  "description": "Synthetic Northwind companion with healthy11038 and blocked baseline requests11045 and11062; future recovery examples remain separate, with the11062 replay pending.",
+  "license": "CC0-1.0",
+  "models": {
+    "shipping": "shipping.modelspec.hcl"
+  },
+  "concepts": [
+    {
+      "id": "shipping-request",
+      "kind": "entity",
+      "description": "A synthetic instruction to arrange shipping for a scenario order. Main examples reuse Northwind identifiers; additional synthetic control orders need not exist in Northwind. Publication and receipt do not prove a carrier assignment, shipment or delivery.",
+      "labels": {
+        "en": "Shipping request"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.requests",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.requests",
+          "role": "identifier",
+          "property": "request_id"
+        },
+        {
+          "model": "modelspec:///shipping.attempts",
+          "role": "foreign-key",
+          "property": "request_id"
+        },
+        {
+          "model": "modelspec:///shipping.publications",
+          "role": "foreign-key",
+          "property": "request_id"
+        },
+        {
+          "model": "modelspec:///shipping.receipts",
+          "role": "foreign-key",
+          "property": "request_id"
+        }
+      ]
+    },
+    {
+      "id": "shipping-attempt",
+      "kind": "entity",
+      "description": "One numbered processing attempt for a shipping request using a pinned routing configuration. The baseline contains accepted and blocked attempts; future replay examples are stored separately.",
+      "labels": {
+        "en": "Shipping attempt"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.attempts",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.attempts",
+          "role": "identifier",
+          "property": "attempt_id"
+        },
+        {
+          "model": "modelspec:///shipping.events",
+          "role": "foreign-key",
+          "property": "attempt_id"
+        },
+        {
+          "model": "modelspec:///shipping.assignments",
+          "role": "foreign-key",
+          "property": "attempt_id"
+        }
+      ]
+    },
+    {
+      "id": "carrier-partner",
+      "kind": "entity",
+      "description": "A synthetic routing destination identified by partner_id, with an enabled flag. It represents the training fixture's partner configuration, not evidence of a real carrier call.",
+      "labels": {
+        "en": "Carrier partner"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.partners",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.partners",
+          "role": "identifier",
+          "property": "partner_id"
+        },
+        {
+          "model": "modelspec:///shipping.routes",
+          "role": "foreign-key",
+          "property": "partner_id"
+        },
+        {
+          "model": "modelspec:///shipping.assignments",
+          "role": "foreign-key",
+          "property": "partner_id"
+        }
+      ]
+    },
+    {
+      "id": "carrier-assignment",
+      "kind": "entity",
+      "description": "A synthetic acceptance of an attempt by a carrier partner, protected by a deduplication key. Assignment acceptance does not establish physical dispatch or delivery.",
+      "labels": {
+        "en": "Carrier assignment"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.assignments",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.assignments",
+          "role": "identifier",
+          "property": "assignment_id"
+        }
+      ]
+    },
+    {
+      "id": "routing-configuration",
+      "kind": "entity",
+      "description": "An immutable numbered configuration revision used when an attempt starts and by the routes published for that revision.",
+      "labels": {
+        "en": "Routing configuration"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.configurations",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.configurations",
+          "role": "identifier",
+          "property": "revision"
+        },
+        {
+          "model": "modelspec:///shipping.attempts",
+          "role": "foreign-key",
+          "property": "config_revision"
+        },
+        {
+          "model": "modelspec:///shipping.routes",
+          "role": "foreign-key",
+          "property": "revision"
+        }
+      ]
+    },
+    {
+      "id": "shipping-route",
+      "kind": "entity",
+      "description": "A time-bounded mapping from a shipper identifier to a partner within one routing configuration. Overlapping or expired routes are retained for diagnostic examples.",
+      "labels": {
+        "en": "Shipping route"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.routes",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.routes",
+          "role": "identifier",
+          "property": "route_id"
+        }
+      ]
+    },
+    {
+      "id": "message-publication",
+      "kind": "entity",
+      "description": "Acknowledgement that a request message was published. Publication acknowledgement alone does not prove receipt, carrier acceptance, or delivery.",
+      "labels": {
+        "en": "Message publication"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.publications",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.publications",
+          "role": "identifier",
+          "property": "publication_id"
+        }
+      ]
+    },
+    {
+      "id": "message-receipt",
+      "kind": "entity",
+      "description": "Observation that a request message was received by the synthetic shipping process. Receipt alone does not prove successful routing or a carrier assignment.",
+      "labels": {
+        "en": "Message receipt"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.receipts",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.receipts",
+          "role": "identifier",
+          "property": "receipt_id"
+        }
+      ]
+    },
+    {
+      "id": "shipping-event",
+      "kind": "entity",
+      "description": "An indexed observation within a shipping attempt, with a sequence, clock domain, timestamp precision and a byte-range pointer to its immutable source log artifact.",
+      "labels": {
+        "en": "Shipping event"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.events",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.events",
+          "role": "identifier",
+          "property": "event_id"
+        }
+      ]
+    },
+    {
+      "id": "workspace-snapshot",
+      "kind": "entity",
+      "description": "The synthetic fixture generation, active configuration and business clock used to evaluate current routes. The business clock is scenario state, not the current wall clock.",
+      "labels": {
+        "en": "Workspace snapshot"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.workspace_state",
+          "role": "entity"
+        },
+        {
+          "model": "modelspec:///shipping.workspace_state",
+          "role": "identifier",
+          "property": "generation"
+        }
+      ]
+    },
+    {
+      "id": "order-reference",
+      "kind": "attribute",
+      "description": "The scenario order identifier to which the request belongs. Orders 11038, 11045 and 11062 reuse Northwind order identifiers; 90001–90005 are synthetic controls that need not resolve to Northwind rows. This is a declared semantic reference, not a SQLite foreign key or automatic join.",
+      "labels": {
+        "en": "Scenario order reference"
+      },
+      "values-of": "meaning://github.com/meaninggraph/core/order?ref=982916d73f0a35ff2558b0062f58aa3ac4f24d97",
+      "of": "shipping-request",
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.requests",
+          "role": "value",
+          "property": "order_id"
+        }
+      ]
+    },
+    {
+      "id": "attempt-state",
+      "kind": "attribute",
+      "description": "The recorded processing state of an attempt. A blocked attempt is not an accepted carrier assignment; the state describes only this synthetic processing attempt.",
+      "labels": {
+        "en": "Attempt state"
+      },
+      "of": "shipping-attempt",
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.attempts",
+          "role": "value",
+          "property": "state"
+        }
+      ]
+    },
+    {
+      "id": "message-id",
+      "kind": "attribute",
+      "description": "The same request message identifier carried through request creation, publication and receipt. Sharing it correlates observations; it does not establish completion.",
+      "labels": {
+        "en": "Message identifier"
+      },
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.requests",
+          "role": "value",
+          "property": "message_id"
+        },
+        {
+          "model": "modelspec:///shipping.publications",
+          "role": "value",
+          "property": "message_id"
+        },
+        {
+          "model": "modelspec:///shipping.receipts",
+          "role": "value",
+          "property": "message_id"
+        }
+      ]
+    },
+    {
+      "id": "correlation-id",
+      "kind": "attribute",
+      "description": "A scenario correlation identifier used to relate shipping requests to synthetic carrier-gateway log entries.",
+      "labels": {
+        "en": "Correlation identifier"
+      },
+      "of": "shipping-request",
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.requests",
+          "role": "value",
+          "property": "correlation_id"
+        }
+      ]
+    },
+    {
+      "id": "event-time",
+      "kind": "attribute",
+      "description": "The recorded event timestamp, interpreted with clock_domain and precision_ms. Time values from different clock domains must not be assumed directly comparable.",
+      "labels": {
+        "en": "Event time"
+      },
+      "of": "shipping-event",
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.events",
+          "role": "value",
+          "property": "occurred_at"
+        }
+      ]
+    },
+    {
+      "id": "clock-domain",
+      "kind": "attribute",
+      "description": "The clock domain in which an event timestamp was recorded; precision_ms declares its resolution.",
+      "labels": {
+        "en": "Clock domain"
+      },
+      "of": "shipping-event",
+      "bindings": [
+        {
+          "model": "modelspec:///shipping.events",
+          "role": "value",
+          "property": "clock_domain"
+        }
+      ]
+    }
+  ]
+}
