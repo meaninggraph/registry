@@ -11,7 +11,7 @@ import {CATALOG_FORMAT,artifactPath,revisionId,sha256,resolveRevision,selectRevi
 import {auditHistoryBaseline} from './lib/catalog.mjs';
 setGitProtocols('https:file');
 const source=process.env.MG_FIXTURE_SOURCE??dirname(dirname(fileURLToPath(import.meta.url)));
-const A='3e7bb316d8a438eb7e5930067997a4e4543a275c', B='b'.repeat(40), C='c'.repeat(40);
+const A='066fdbfe7bcd623209ecb734c8d3d346eb756d77', B='b'.repeat(40), C='c'.repeat(40);
 const hcl=name=>`# SPDX-License-Identifier: MIT\nrecord "${name}" {}\n`;
 const modelJSON=(repository,module,{large=false}={})=>JSON.stringify({modelspec:'1.0-draft-2',module:{id:`${repository.slice('https://'.length)}/${module}`,name:module,version:'0.1.0'},records:{[module]:{fields:{n:{type:'integer',...(large?{minimum:9007199254740993n.toString()}: {})}}}}}).replace(/"minimum":"(\d+)"/,'"minimum":$1')+'\n';
 function setup(t) {
